@@ -123,6 +123,8 @@
 #endif
 #include "AP_Arming.h"
 
+#include "Adelphi.h"
+
 /*
   main APM:Plane class
  */
@@ -172,6 +174,8 @@ public:
     friend class ModeThermal;
     friend class ModeLoiterAltQLand;
 
+    friend class Adelphi;
+
 #if AP_EXTERNAL_CONTROL_ENABLED
     friend class AP_ExternalControl_Plane;
 #endif
@@ -179,6 +183,8 @@ public:
     Plane(void);
 
 private:
+    // Adelphi Controller
+    Adelphi adelphi;
 
     // key aircraft parameters passed to multiple libraries
     AP_FixedWing aparm;

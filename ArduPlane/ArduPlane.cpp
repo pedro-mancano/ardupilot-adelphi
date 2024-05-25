@@ -54,81 +54,82 @@ FAST_TASK entries are run on every loop even if that means the loop
 overruns its allotted time
  */
 const AP_Scheduler::Task Plane::scheduler_tasks[] = {
-                           // Units:   Hz      us
+    // Units:   Hz      us
     FAST_TASK(ahrs_update),
     FAST_TASK(update_control_mode),
     FAST_TASK(stabilize),
     FAST_TASK(set_servos),
-    SCHED_TASK(read_radio,             50,    100,   6),
-    SCHED_TASK(check_short_failsafe,   50,    100,   9),
-    SCHED_TASK(update_speed_height,    50,    200,  12),
-    SCHED_TASK(update_throttle_hover, 100,     90,  24),
-    SCHED_TASK_CLASS(RC_Channels,     (RC_Channels*)&plane.g2.rc_channels, read_mode_switch,           7,    100, 27),
-    SCHED_TASK(update_GPS_50Hz,        50,    300,  30),
-    SCHED_TASK(update_GPS_10Hz,        10,    400,  33),
-    SCHED_TASK(navigate,               10,    150,  36),
-    SCHED_TASK(update_compass,         10,    200,  39),
-    SCHED_TASK(calc_airspeed_errors,   10,    100,  42),
-    SCHED_TASK(update_alt,             10,    200,  45),
-    SCHED_TASK(adjust_altitude_target, 10,    200,  48),
+    SCHED_TASK(read_radio, 50, 100, 6),
+    SCHED_TASK(check_short_failsafe, 50, 100, 9),
+    SCHED_TASK_CLASS(Adelphi, &plane.adelphi, update, 10, 350, 11),
+    SCHED_TASK(update_speed_height, 50, 200, 12),
+    SCHED_TASK(update_throttle_hover, 100, 90, 24),
+    SCHED_TASK_CLASS(RC_Channels, (RC_Channels *)&plane.g2.rc_channels, read_mode_switch, 7, 100, 27),
+    SCHED_TASK(update_GPS_50Hz, 50, 300, 30),
+    SCHED_TASK(update_GPS_10Hz, 10, 400, 33),
+    SCHED_TASK(navigate, 10, 150, 36),
+    SCHED_TASK(update_compass, 10, 200, 39),
+    SCHED_TASK(calc_airspeed_errors, 10, 100, 42),
+    SCHED_TASK(update_alt, 10, 200, 45),
+    SCHED_TASK(adjust_altitude_target, 10, 200, 48),
 #if AP_ADVANCEDFAILSAFE_ENABLED
-    SCHED_TASK(afs_fs_check,           10,    100,  51),
+    SCHED_TASK(afs_fs_check, 10, 100, 51),
 #endif
-    SCHED_TASK(ekf_check,              10,     75,  54),
-    SCHED_TASK_CLASS(GCS,            (GCS*)&plane._gcs,       update_receive,   300,  500,  57),
-    SCHED_TASK_CLASS(GCS,            (GCS*)&plane._gcs,       update_send,      300,  750,  60),
+    SCHED_TASK(ekf_check, 10, 75, 54),
+    SCHED_TASK_CLASS(GCS, (GCS *)&plane._gcs, update_receive, 300, 500, 57),
+    SCHED_TASK_CLASS(GCS, (GCS *)&plane._gcs, update_send, 300, 750, 60),
 #if AP_SERVORELAYEVENTS_ENABLED
-    SCHED_TASK_CLASS(AP_ServoRelayEvents, &plane.ServoRelayEvents, update_events, 50, 150,  63),
+    SCHED_TASK_CLASS(AP_ServoRelayEvents, &plane.ServoRelayEvents, update_events, 50, 150, 63),
 #endif
-    SCHED_TASK_CLASS(AP_BattMonitor, &plane.battery, read,   10, 300,  66),
-    SCHED_TASK_CLASS(AP_Baro, &plane.barometer, accumulate,  50, 150,  69),
-    SCHED_TASK(read_rangefinder,       50,    100, 78),
+    SCHED_TASK_CLASS(AP_BattMonitor, &plane.battery, read, 10, 300, 66),
+    SCHED_TASK_CLASS(AP_Baro, &plane.barometer, accumulate, 50, 150, 69),
+    SCHED_TASK(read_rangefinder, 50, 100, 78),
 #if AP_ICENGINE_ENABLED
-    SCHED_TASK_CLASS(AP_ICEngine,      &plane.g2.ice_control, update,     10, 100,  81),
+    SCHED_TASK_CLASS(AP_ICEngine, &plane.g2.ice_control, update, 10, 100, 81),
 #endif
 #if AP_OPTICALFLOW_ENABLED
-    SCHED_TASK_CLASS(AP_OpticalFlow, &plane.optflow, update,    50,    50,  87),
+    SCHED_TASK_CLASS(AP_OpticalFlow, &plane.optflow, update, 50, 50, 87),
 #endif
-    SCHED_TASK(one_second_loop,         1,    400,  90),
-    SCHED_TASK(three_hz_loop,           3,     75,  93),
-    SCHED_TASK(check_long_failsafe,     3,    400,  96),
+    SCHED_TASK(one_second_loop, 1, 400, 90),
+    SCHED_TASK(three_hz_loop, 3, 75, 93),
+    SCHED_TASK(check_long_failsafe, 3, 400, 96),
 #if AP_RPM_ENABLED
-    SCHED_TASK_CLASS(AP_RPM,           &plane.rpm_sensor,     update,     10, 100,  99),
+    SCHED_TASK_CLASS(AP_RPM, &plane.rpm_sensor, update, 10, 100, 99),
 #endif
 #if AP_AIRSPEED_AUTOCAL_ENABLE
-    SCHED_TASK(airspeed_ratio_update,   1,    100,  102),
+    SCHED_TASK(airspeed_ratio_update, 1, 100, 102),
 #endif // AP_AIRSPEED_AUTOCAL_ENABLE
 #if HAL_MOUNT_ENABLED
     SCHED_TASK_CLASS(AP_Mount, &plane.camera_mount, update, 50, 100, 105),
 #endif // HAL_MOUNT_ENABLED
 #if AP_CAMERA_ENABLED
-    SCHED_TASK_CLASS(AP_Camera, &plane.camera, update,      50, 100, 108),
+    SCHED_TASK_CLASS(AP_Camera, &plane.camera, update, 50, 100, 108),
 #endif // CAMERA == ENABLED
 #if HAL_LOGGING_ENABLED
-    SCHED_TASK_CLASS(AP_Scheduler, &plane.scheduler, update_logging,         0.2,    100, 111),
+    SCHED_TASK_CLASS(AP_Scheduler, &plane.scheduler, update_logging, 0.2, 100, 111),
 #endif
-    SCHED_TASK(compass_save,          0.1,    200, 114),
+    SCHED_TASK(compass_save, 0.1, 200, 114),
 #if HAL_LOGGING_ENABLED
-    SCHED_TASK(Log_Write_FullRate,        400,    300, 117),
-    SCHED_TASK(update_logging10,        10,    300, 120),
-    SCHED_TASK(update_logging25,        25,    300, 123),
+    SCHED_TASK(Log_Write_FullRate, 400, 300, 117),
+    SCHED_TASK(update_logging10, 10, 300, 120),
+    SCHED_TASK(update_logging25, 25, 300, 123),
 #endif
 #if HAL_SOARING_ENABLED
-    SCHED_TASK(update_soaring,         50,    400, 126),
+    SCHED_TASK(update_soaring, 50, 400, 126),
 #endif
-    SCHED_TASK(parachute_check,        10,    200, 129),
+    SCHED_TASK(parachute_check, 10, 200, 129),
 #if AP_TERRAIN_AVAILABLE
     SCHED_TASK_CLASS(AP_Terrain, &plane.terrain, update, 10, 200, 132),
 #endif // AP_TERRAIN_AVAILABLE
-    SCHED_TASK(update_is_flying_5Hz,    5,    100, 135),
+    SCHED_TASK(update_is_flying_5Hz, 5, 100, 135),
 #if HAL_LOGGING_ENABLED
-    SCHED_TASK_CLASS(AP_Logger,         &plane.logger, periodic_tasks, 50, 400, 138),
+    SCHED_TASK_CLASS(AP_Logger, &plane.logger, periodic_tasks, 50, 400, 138),
 #endif
-    SCHED_TASK_CLASS(AP_InertialSensor, &plane.ins,    periodic,       50,  50, 141),
+    SCHED_TASK_CLASS(AP_InertialSensor, &plane.ins, periodic, 50, 50, 141),
 #if HAL_ADSB_ENABLED
-    SCHED_TASK(avoidance_adsb_update,  10,    100, 144),
+    SCHED_TASK(avoidance_adsb_update, 10, 100, 144),
 #endif
-    SCHED_TASK_CLASS(RC_Channels,       (RC_Channels*)&plane.g2.rc_channels, read_aux_all,           10,    200, 147),
+    SCHED_TASK_CLASS(RC_Channels, (RC_Channels *)&plane.g2.rc_channels, read_aux_all, 10, 200, 147),
 #if HAL_BUTTON_ENABLED
     SCHED_TASK_CLASS(AP_Button, &plane.button, update, 5, 100, 150),
 #endif
