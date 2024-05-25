@@ -317,7 +317,6 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @Range: 0 21
     AP_SUBGROUPINFO(wind, "WIND", 18, AP_OSD_Screen, AP_OSD_Setting),
 
-
     // @Param: ASPEED_EN
     // @DisplayName: ASPEED_EN
     // @Description: Displays airspeed value being used by TECS (fused value)
@@ -673,7 +672,6 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @Range: 0 21
     AP_SUBGROUPINFO(bat2used, "BAT2USED", 40, AP_OSD_Screen, AP_OSD_Setting),
 
-
     // @Param: ASPD2_EN
     // @DisplayName: ASPD2_EN
     // @Description: Displays airspeed reported directly from secondary airspeed sensor
@@ -852,7 +850,7 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @Description: Vertical position on screen
     // @Range: 0 21
     AP_SUBGROUPINFO(arming, "ARMING", 51, AP_OSD_Screen, AP_OSD_Setting),
-#endif //HAL_MSP_ENABLED
+#endif // HAL_MSP_ENABLED
 
 #if HAL_PLUSCODE_ENABLE
     // @Param: PLUSCODE_EN
@@ -922,7 +920,7 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @Description: Vertical position on screen
     // @Range: 0 21
     AP_SUBGROUPINFO(vtx_power, "VTX_PWR", 55, AP_OSD_Screen, AP_OSD_Setting),
-#endif  // AP_VIDEOTX_ENABLED
+#endif // AP_VIDEOTX_ENABLED
 
 #if AP_TERRAIN_AVAILABLE
     // @Param: TER_HGT_EN
@@ -1023,21 +1021,21 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     AP_SUBGROUPINFO(avgcellrestvolt, "ACRVOLT", 61, AP_OSD_Screen, AP_OSD_Setting),
 
 #if AP_RPM_ENABLED
-	// @Param: RPM_EN
-	// @DisplayName: RPM_EN
-	// @Description: Displays main rotor revs/min
-	// @Values: 0:Disabled,1:Enabled
+    // @Param: RPM_EN
+    // @DisplayName: RPM_EN
+    // @Description: Displays main rotor revs/min
+    // @Values: 0:Disabled,1:Enabled
 
-	// @Param: RPM_X
-	// @DisplayName: RPM_X
-	// @Description: Horizontal position on screen
-	// @Range: 0 29
+    // @Param: RPM_X
+    // @DisplayName: RPM_X
+    // @Description: Horizontal position on screen
+    // @Range: 0 29
 
-	// @Param: RPM_Y
-	// @DisplayName: RPM_Y
-	// @Description: Vertical position on screen
-	// @Range: 0 15
-	AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
+    // @Param: RPM_Y
+    // @DisplayName: RPM_Y
+    // @Description: Vertical position on screen
+    // @Range: 0 15
+    AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
 #ifdef ADELPHI_CUSTOM_PLANE
@@ -1059,8 +1057,7 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     AP_SUBGROUPINFO(adelphi_status, "ADELPHI", 63, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
-    AP_GROUPEND
-};
+    AP_GROUPEND};
 
 const AP_Param::GroupInfo AP_OSD_Screen::var_info2[] = {
     // duplicate of OSDn_ENABLE to ensure params are hidden when not enabled
@@ -1097,9 +1094,7 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info2[] = {
     // @User: Standard
     AP_GROUPINFO("FONT", 4, AP_OSD_Screen, font_index, 0),
 #endif
-    AP_GROUPEND
-};
-
+    AP_GROUPEND};
 
 uint8_t AP_OSD_AbstractScreen::symbols_lookup_table[AP_OSD_NUM_SYMBOLS];
 
@@ -1223,7 +1218,7 @@ void AP_OSD_AbstractScreen::set_backend(AP_OSD_Backend *_backend)
 
 bool AP_OSD_AbstractScreen::check_option(uint32_t option)
 {
-    return osd?(osd->options & option) != 0 : false;
+    return osd ? (osd->options & option) != 0 : false;
 }
 
 /*
@@ -1231,45 +1226,45 @@ bool AP_OSD_AbstractScreen::check_option(uint32_t option)
  */
 char AP_OSD_AbstractScreen::u_icon(enum unit_type unit)
 {
-    static const uint8_t icons_metric[UNIT_TYPE_LAST] {
-        SYM_ALT_M,    //ALTITUDE
-        SYM_KMH,      //SPEED
-        SYM_MS,       //VSPEED
-        SYM_M,        //DISTANCE
-        SYM_KM,       //DISTANCE_LONG
-        SYM_DEGREES_C //TEMPERATURE
+    static const uint8_t icons_metric[UNIT_TYPE_LAST]{
+        SYM_ALT_M,    // ALTITUDE
+        SYM_KMH,      // SPEED
+        SYM_MS,       // VSPEED
+        SYM_M,        // DISTANCE
+        SYM_KM,       // DISTANCE_LONG
+        SYM_DEGREES_C // TEMPERATURE
     };
-    static const uint8_t icons_imperial[UNIT_TYPE_LAST] {
-        SYM_ALT_FT,   //ALTITUDE
-        SYM_MPH,      //SPEED
-        SYM_FS,       //VSPEED
-        SYM_FT,       //DISTANCE
-        SYM_MI,       //DISTANCE_LONG
-        SYM_DEGREES_F //TEMPERATURE
+    static const uint8_t icons_imperial[UNIT_TYPE_LAST]{
+        SYM_ALT_FT,   // ALTITUDE
+        SYM_MPH,      // SPEED
+        SYM_FS,       // VSPEED
+        SYM_FT,       // DISTANCE
+        SYM_MI,       // DISTANCE_LONG
+        SYM_DEGREES_F // TEMPERATURE
     };
-    static const uint8_t icons_SI[UNIT_TYPE_LAST] {
-        SYM_ALT_M,    //ALTITUDE
-        SYM_MS,       //SPEED
-        SYM_MS,       //VSPEED
-        SYM_M,        //DISTANCE
-        SYM_KM,       //DISTANCE_LONG
-        SYM_DEGREES_C //TEMPERATURE
+    static const uint8_t icons_SI[UNIT_TYPE_LAST]{
+        SYM_ALT_M,    // ALTITUDE
+        SYM_MS,       // SPEED
+        SYM_MS,       // VSPEED
+        SYM_M,        // DISTANCE
+        SYM_KM,       // DISTANCE_LONG
+        SYM_DEGREES_C // TEMPERATURE
     };
-    static const uint8_t icons_aviation[UNIT_TYPE_LAST] {
-        SYM_ALT_FT,   //ALTITUDE Ft
-        SYM_KN,       //SPEED Knots
-        SYM_FTMIN,    //VSPEED
-        SYM_FT,       //DISTANCE
-        SYM_NM,       //DISTANCE_LONG Nm
-        SYM_DEGREES_C //TEMPERATURE
+    static const uint8_t icons_aviation[UNIT_TYPE_LAST]{
+        SYM_ALT_FT,   // ALTITUDE Ft
+        SYM_KN,       // SPEED Knots
+        SYM_FTMIN,    // VSPEED
+        SYM_FT,       // DISTANCE
+        SYM_NM,       // DISTANCE_LONG Nm
+        SYM_DEGREES_C // TEMPERATURE
     };
-    static const uint8_t* icons[AP_OSD::UNITS_LAST] = {
+    static const uint8_t *icons[AP_OSD::UNITS_LAST] = {
         icons_metric,
         icons_imperial,
         icons_SI,
         icons_aviation,
     };
-    return (char)SYMBOL(icons[constrain_int16(osd->units, 0, AP_OSD::UNITS_LAST-1)][unit]);
+    return (char)SYMBOL(icons[constrain_int16(osd->units, 0, AP_OSD::UNITS_LAST - 1)][unit]);
 }
 
 /*
@@ -1278,59 +1273,57 @@ char AP_OSD_AbstractScreen::u_icon(enum unit_type unit)
 float AP_OSD_AbstractScreen::u_scale(enum unit_type unit, float value)
 {
     static const float scale_metric[UNIT_TYPE_LAST] = {
-        1.0,       //ALTITUDE m
-        3.6,       //SPEED km/hr
-        1.0,       //VSPEED m/s
-        1.0,       //DISTANCE m
-        1.0/1000,  //DISTANCE_LONG km
-        1.0,       //TEMPERATURE C
+        1.0,        // ALTITUDE m
+        3.6,        // SPEED km/hr
+        1.0,        // VSPEED m/s
+        1.0,        // DISTANCE m
+        1.0 / 1000, // DISTANCE_LONG km
+        1.0,        // TEMPERATURE C
     };
     static const float scale_imperial[UNIT_TYPE_LAST] = {
-        3.28084,     //ALTITUDE ft
-        2.23694,     //SPEED mph
-        3.28084,     //VSPEED ft/s
-        3.28084,     //DISTANCE ft
-        1.0/1609.34, //DISTANCE_LONG miles
-        1.8,         //TEMPERATURE F
+        3.28084,       // ALTITUDE ft
+        2.23694,       // SPEED mph
+        3.28084,       // VSPEED ft/s
+        3.28084,       // DISTANCE ft
+        1.0 / 1609.34, // DISTANCE_LONG miles
+        1.8,           // TEMPERATURE F
     };
     static const float offset_imperial[UNIT_TYPE_LAST] = {
-        0.0,          //ALTITUDE
-        0.0,          //SPEED
-        0.0,          //VSPEED
-        0.0,          //DISTANCE
-        0.0,          //DISTANCE_LONG
-        32.0,         //TEMPERATURE F
+        0.0,  // ALTITUDE
+        0.0,  // SPEED
+        0.0,  // VSPEED
+        0.0,  // DISTANCE
+        0.0,  // DISTANCE_LONG
+        32.0, // TEMPERATURE F
     };
     static const float scale_SI[UNIT_TYPE_LAST] = {
-        1.0,       //ALTITUDE m
-        1.0,       //SPEED m/s
-        1.0,       //VSPEED m/s
-        1.0,       //DISTANCE m
-        1.0/1000,  //DISTANCE_LONG km
-        1.0,       //TEMPERATURE C
+        1.0,        // ALTITUDE m
+        1.0,        // SPEED m/s
+        1.0,        // VSPEED m/s
+        1.0,        // DISTANCE m
+        1.0 / 1000, // DISTANCE_LONG km
+        1.0,        // TEMPERATURE C
     };
     static const float scale_aviation[UNIT_TYPE_LAST] = {
-        3.28084,   //ALTITUDE Ft
-        1.94384,   //SPEED Knots
-        196.85,    //VSPEED ft/min
-        3.28084,   //DISTANCE ft
-        0.000539957,  //DISTANCE_LONG Nm
-        1.0,       //TEMPERATURE C
+        3.28084,     // ALTITUDE Ft
+        1.94384,     // SPEED Knots
+        196.85,      // VSPEED ft/min
+        3.28084,     // DISTANCE ft
+        0.000539957, // DISTANCE_LONG Nm
+        1.0,         // TEMPERATURE C
     };
     static const float *scale[AP_OSD::UNITS_LAST] = {
         scale_metric,
         scale_imperial,
         scale_SI,
-        scale_aviation
-    };
+        scale_aviation};
     static const float *offsets[AP_OSD::UNITS_LAST] = {
         nullptr,
         offset_imperial,
         nullptr,
-        nullptr
-    };
-    uint8_t units = constrain_int16(osd->units, 0, AP_OSD::UNITS_LAST-1);
-    return value * scale[units][unit] + (offsets[units]?offsets[units][unit]:0);
+        nullptr};
+    uint8_t units = constrain_int16(osd->units, 0, AP_OSD::UNITS_LAST - 1);
+    return value * scale[units][unit] + (offsets[units] ? offsets[units][unit] : 0);
 }
 
 char AP_OSD_Screen::get_arrow_font_index(int32_t angle_cd)
@@ -1338,9 +1331,10 @@ char AP_OSD_Screen::get_arrow_font_index(int32_t angle_cd)
     uint32_t interval = 36000 / SYMBOL(SYM_ARROW_COUNT);
     angle_cd = wrap_360_cd(angle_cd);
     // if using BF font table must translate arrows
-    if (check_option(AP_OSD::OPTION_BF_ARROWS)) {
-        angle_cd = angle_cd > 18000? 54000 - angle_cd : 18000- angle_cd;
-    } 
+    if (check_option(AP_OSD::OPTION_BF_ARROWS))
+    {
+        angle_cd = angle_cd > 18000 ? 54000 - angle_cd : 18000 - angle_cd;
+    }
     return SYMBOL(SYM_ARROW_START) + ((angle_cd + interval / 2) / interval) % SYMBOL(SYM_ARROW_COUNT);
 }
 
@@ -1362,79 +1356,98 @@ void AP_OSD_Screen::draw_bat_volt(uint8_t instance, VoltageType type, uint8_t x,
     uint8_t pct;
     bool show_remaining_pct = battery.capacity_remaining_pct(pct);
     uint8_t p = (100 - pct) / 16.6;
-    switch (type) {
-    case VoltageType::VOLTAGE: {
+    switch (type)
+    {
+    case VoltageType::VOLTAGE:
+    {
         break;
     }
-    case VoltageType::RESTING_VOLTAGE: {
+    case VoltageType::RESTING_VOLTAGE:
+    {
         v = battery.voltage_resting_estimate(instance);
         blinkvolt = osd->warn_restvolt;
         break;
     }
-    case VoltageType::RESTING_CELL: { 
+    case VoltageType::RESTING_CELL:
+    {
         blinkvolt = osd->warn_avgcellrestvolt;
         v = battery.voltage_resting_estimate(instance);
         FALLTHROUGH;
     }
-    case VoltageType::AVG_CELL: {         
-       if (type == VoltageType::AVG_CELL) { //for fallthrough of RESTING_CELL
+    case VoltageType::AVG_CELL:
+    {
+        if (type == VoltageType::AVG_CELL)
+        { // for fallthrough of RESTING_CELL
             blinkvolt = osd->warn_avgcellvolt;
-       }
-       // calculate cell count - WARNING this can be inaccurate if the LIPO/LIION  battery is far from 
-       // fully charged when attached and is used in this panel
-       osd->max_battery_voltage.set(MAX(osd->max_battery_voltage,v));
-       if (osd->cell_count > 0) {
-           v = v / osd->cell_count;
-       } else if (osd->cell_count < 0) { // user must decide on autodetect cell count or manually entered to display this panel since default is -1
-           backend->write(x,y, false, "%c---%c", SYMBOL(SYM_BATT_FULL) + p, SYMBOL(SYM_VOLT));
-           return;
-       } else {  // use autodetected cell count
-            v = v /  (uint8_t)(osd->max_battery_voltage * 0.2381 + 1);
-       }
-       break;
+        }
+        // calculate cell count - WARNING this can be inaccurate if the LIPO/LIION  battery is far from
+        // fully charged when attached and is used in this panel
+        osd->max_battery_voltage.set(MAX(osd->max_battery_voltage, v));
+        if (osd->cell_count > 0)
+        {
+            v = v / osd->cell_count;
+        }
+        else if (osd->cell_count < 0)
+        { // user must decide on autodetect cell count or manually entered to display this panel since default is -1
+            backend->write(x, y, false, "%c---%c", SYMBOL(SYM_BATT_FULL) + p, SYMBOL(SYM_VOLT));
+            return;
+        }
+        else
+        { // use autodetected cell count
+            v = v / (uint8_t)(osd->max_battery_voltage * 0.2381 + 1);
+        }
+        break;
     }
-    }    
-    if (!show_remaining_pct) {
+    }
+    if (!show_remaining_pct)
+    {
         // Do not show battery percentage
-        if (type == VoltageType::RESTING_CELL || type == VoltageType::AVG_CELL) {
-            backend->write(x,y, v < blinkvolt, "%1.2f%c", (double)v, SYMBOL(SYM_VOLT));
-        } else {
-            backend->write(x,y, v < blinkvolt, "%2.1f%c", (double)v, SYMBOL(SYM_VOLT));
+        if (type == VoltageType::RESTING_CELL || type == VoltageType::AVG_CELL)
+        {
+            backend->write(x, y, v < blinkvolt, "%1.2f%c", (double)v, SYMBOL(SYM_VOLT));
+        }
+        else
+        {
+            backend->write(x, y, v < blinkvolt, "%2.1f%c", (double)v, SYMBOL(SYM_VOLT));
         }
         return;
     }
-    if (type == VoltageType::RESTING_CELL || type == VoltageType::AVG_CELL) {
-        backend->write(x,y, v < blinkvolt, "%c%1.2f%c", SYMBOL(SYM_BATT_FULL) + p, (double)v, SYMBOL(SYM_VOLT));
-    } else {
-        backend->write(x,y, v < blinkvolt, "%c%2.1f%c", SYMBOL(SYM_BATT_FULL) + p, (double)v, SYMBOL(SYM_VOLT));
+    if (type == VoltageType::RESTING_CELL || type == VoltageType::AVG_CELL)
+    {
+        backend->write(x, y, v < blinkvolt, "%c%1.2f%c", SYMBOL(SYM_BATT_FULL) + p, (double)v, SYMBOL(SYM_VOLT));
+    }
+    else
+    {
+        backend->write(x, y, v < blinkvolt, "%c%2.1f%c", SYMBOL(SYM_BATT_FULL) + p, (double)v, SYMBOL(SYM_VOLT));
     }
 }
 
 void AP_OSD_Screen::draw_bat_volt(uint8_t x, uint8_t y)
 {
-    draw_bat_volt(0,VoltageType::VOLTAGE,x,y);
+    draw_bat_volt(0, VoltageType::VOLTAGE, x, y);
 }
 
 void AP_OSD_Screen::draw_avgcellvolt(uint8_t x, uint8_t y)
 {
-    draw_bat_volt(0,VoltageType::AVG_CELL,x,y);
+    draw_bat_volt(0, VoltageType::AVG_CELL, x, y);
 }
 
 void AP_OSD_Screen::draw_avgcellrestvolt(uint8_t x, uint8_t y)
 {
-    draw_bat_volt(0,VoltageType::RESTING_CELL,x, y);
+    draw_bat_volt(0, VoltageType::RESTING_CELL, x, y);
 }
 
 void AP_OSD_Screen::draw_restvolt(uint8_t x, uint8_t y)
 {
-    draw_bat_volt(0,VoltageType::RESTING_VOLTAGE,x,y);
+    draw_bat_volt(0, VoltageType::RESTING_VOLTAGE, x, y);
 }
 
 #if AP_RSSI_ENABLED
 void AP_OSD_Screen::draw_rssi(uint8_t x, uint8_t y)
 {
     AP_RSSI *ap_rssi = AP_RSSI::get_singleton();
-    if (ap_rssi) {
+    if (ap_rssi)
+    {
         const uint8_t rssiv = ap_rssi->read_receiver_rssi() * 100;
         backend->write(x, y, rssiv < osd->warn_rssi, "%c%2d", SYMBOL(SYM_RSSI), rssiv);
     }
@@ -1443,29 +1456,36 @@ void AP_OSD_Screen::draw_rssi(uint8_t x, uint8_t y)
 void AP_OSD_Screen::draw_link_quality(uint8_t x, uint8_t y)
 {
     AP_RSSI *ap_rssi = AP_RSSI::get_singleton();
-    if (ap_rssi) {
+    if (ap_rssi)
+    {
         const int16_t lqv = ap_rssi->read_receiver_link_quality();
-        if (lqv < 0){
+        if (lqv < 0)
+        {
             backend->write(x, y, false, "%c--", SYMBOL(SYM_LQ));
-        } else {
+        }
+        else
+        {
             backend->write(x, y, false, "%c%2d", SYMBOL(SYM_LQ), lqv);
         }
     }
 }
-#endif  // AP_RSSI_ENABLED
+#endif // AP_RSSI_ENABLED
 
 void AP_OSD_Screen::draw_current(uint8_t instance, uint8_t x, uint8_t y)
 {
     float amps;
-    if (!AP::battery().current_amps(amps, instance)) {
+    if (!AP::battery().current_amps(amps, instance))
+    {
         osd->_stats.avg_current_a = 0;
     }
-    //filter current and display with autoranging for low values
-    osd->_stats.avg_current_a= osd->_stats.avg_current_a + (amps - osd->_stats.avg_current_a) * 0.33;
-    if (osd->_stats.avg_current_a < 10.0) {
+    // filter current and display with autoranging for low values
+    osd->_stats.avg_current_a = osd->_stats.avg_current_a + (amps - osd->_stats.avg_current_a) * 0.33;
+    if (osd->_stats.avg_current_a < 10.0)
+    {
         backend->write(x, y, false, "%2.2f%c", osd->_stats.avg_current_a, SYMBOL(SYM_AMP));
     }
-    else {
+    else
+    {
         backend->write(x, y, false, "%2.1f%c", osd->_stats.avg_current_a, SYMBOL(SYM_AMP));
     }
 }
@@ -1477,21 +1497,25 @@ void AP_OSD_Screen::draw_current(uint8_t x, uint8_t y)
 
 void AP_OSD_Screen::draw_fltmode(uint8_t x, uint8_t y)
 {
-    AP_Notify * notify = AP_Notify::get_singleton();
+    AP_Notify *notify = AP_Notify::get_singleton();
     char arm;
-    if (AP_Notify::flags.armed) {
+    if (AP_Notify::flags.armed)
+    {
         arm = SYMBOL(SYM_ARMED);
-    } else {
+    }
+    else
+    {
         arm = SYMBOL(SYM_DISARMED);
     }
-    if (notify) {
+    if (notify)
+    {
         backend->write(x, y, false, "%s%c", notify->get_flight_mode_str(), arm);
     }
 }
 
 void AP_OSD_Screen::draw_sats(uint8_t x, uint8_t y)
 {
-    AP_GPS & gps = AP::gps();
+    AP_GPS &gps = AP::gps();
     uint8_t nsat = gps.num_sats();
     bool flash = (nsat < osd->warn_nsat) || (gps.status() < AP_GPS::GPS_OK_FIX_3D);
     backend->write(x, y, flash, "%c%c%2u", SYMBOL(SYM_SAT_L), SYMBOL(SYM_SAT_R), nsat);
@@ -1500,14 +1524,18 @@ void AP_OSD_Screen::draw_sats(uint8_t x, uint8_t y)
 void AP_OSD_Screen::draw_batused(uint8_t instance, uint8_t x, uint8_t y)
 {
     float mah;
-    if (!AP::battery().consumed_mah(mah, instance)) {
+    if (!AP::battery().consumed_mah(mah, instance))
+    {
         mah = 0;
     }
-    if (mah <= 9999) {
-        backend->write(x,y, false, "%4d%c", (int)mah, SYMBOL(SYM_MAH));
-    } else {
+    if (mah <= 9999)
+    {
+        backend->write(x, y, false, "%4d%c", (int)mah, SYMBOL(SYM_MAH));
+    }
+    else
+    {
         const float ah = mah * 1e-3f;
-        backend->write(x,y, false, "%2.2f%c", (double)ah, SYMBOL(SYM_AH));
+        backend->write(x, y, false, "%2.2f%c", (double)ah, SYMBOL(SYM_AH));
     }
 }
 
@@ -1516,52 +1544,60 @@ void AP_OSD_Screen::draw_batused(uint8_t x, uint8_t y)
     draw_batused(0, x, y);
 }
 
-//Autoscroll message is the same as in minimosd-extra.
-//Thanks to night-ghost for the approach.
+// Autoscroll message is the same as in minimosd-extra.
+// Thanks to night-ghost for the approach.
 void AP_OSD_Screen::draw_message(uint8_t x, uint8_t y)
 {
-    AP_Notify * notify = AP_Notify::get_singleton();
-    if (notify) {
+    AP_Notify *notify = AP_Notify::get_singleton();
+    if (notify)
+    {
         int32_t visible_time = AP_HAL::millis() - notify->get_text_updated_millis();
-        if (visible_time < osd->msgtime_s *1000) {
+        if (visible_time < osd->msgtime_s * 1000)
+        {
             char buffer[NOTIFY_TEXT_BUFFER_SIZE];
             strncpy(buffer, notify->get_text(), sizeof(buffer));
             int16_t len = strnlen(buffer, sizeof(buffer));
 
-            for (int16_t i=0; i<len; i++) {
-                //converted to uppercase,
-                //because we do not have small letter chars inside used font
+            for (int16_t i = 0; i < len; i++)
+            {
+                // converted to uppercase,
+                // because we do not have small letter chars inside used font
                 buffer[i] = toupper(buffer[i]);
-                //normalize whitespace
-                if (isspace(buffer[i])) {
+                // normalize whitespace
+                if (isspace(buffer[i]))
+                {
                     buffer[i] = ' ';
                 }
             }
 
             int16_t start_position = 0;
-            //scroll if required
-            //scroll pattern: wait, scroll to the left, wait, scroll to the right
-            if (len > message_visible_width) {
+            // scroll if required
+            // scroll pattern: wait, scroll to the left, wait, scroll to the right
+            if (len > message_visible_width)
+            {
                 int16_t chars_to_scroll = len - message_visible_width;
-                int16_t total_cycles = 2*message_scroll_delay + 2*chars_to_scroll;
+                int16_t total_cycles = 2 * message_scroll_delay + 2 * chars_to_scroll;
                 int16_t current_cycle = (visible_time / message_scroll_time_ms) % total_cycles;
 
-                //calculate scroll start_position
-                if (current_cycle < total_cycles/2) {
-                    //move to the left
+                // calculate scroll start_position
+                if (current_cycle < total_cycles / 2)
+                {
+                    // move to the left
                     start_position = current_cycle - message_scroll_delay;
-                } else {
-                    //move to the right
+                }
+                else
+                {
+                    // move to the right
                     start_position = total_cycles - current_cycle;
                 }
                 start_position = constrain_int16(start_position, 0, chars_to_scroll);
                 int16_t end_position = start_position + message_visible_width;
 
-                //ensure array boundaries
-                start_position = MIN(start_position, int(sizeof(buffer)-1));
-                end_position = MIN(end_position, int(sizeof(buffer)-1));
+                // ensure array boundaries
+                start_position = MIN(start_position, int(sizeof(buffer) - 1));
+                end_position = MIN(end_position, int(sizeof(buffer) - 1));
 
-                //trim invisible part
+                // trim invisible part
                 buffer[end_position] = 0;
             }
 
@@ -1575,9 +1611,12 @@ void AP_OSD_Screen::draw_speed(uint8_t x, uint8_t y, float angle_rad, float magn
 {
     int32_t angle_cd = angle_rad * DEGX100;
     char arrow = get_arrow_font_index(angle_cd);
-    if (u_scale(SPEED, magnitude) < 9.95) {
+    if (u_scale(SPEED, magnitude) < 9.95)
+    {
         backend->write(x, y, false, "%c %1.1f%c", arrow, u_scale(SPEED, magnitude), u_icon(SPEED));
-    } else {
+    }
+    else
+    {
         backend->write(x, y, false, "%c%3d%c", arrow, (int)roundf(u_scale(SPEED, magnitude)), u_icon(SPEED));
     }
 }
@@ -1590,13 +1629,14 @@ void AP_OSD_Screen::draw_gspeed(uint8_t x, uint8_t y)
     backend->write(x, y, false, "%c", SYMBOL(SYM_GSPD));
     float angle = 0;
     const float length = v.length();
-    if (length > 1.0f) {
+    if (length > 1.0f)
+    {
         angle = atan2f(v.y, v.x) - ahrs.get_yaw();
     }
     draw_speed(x + 1, y, angle, length);
 }
 
-//Thanks to betaflight/inav for simple and clean artificial horizon visual design
+// Thanks to betaflight/inav for simple and clean artificial horizon visual design
 void AP_OSD_Screen::draw_horizon(uint8_t x, uint8_t y)
 {
     AP_AHRS &ahrs = AP::ahrs();
@@ -1604,18 +1644,21 @@ void AP_OSD_Screen::draw_horizon(uint8_t x, uint8_t y)
     float roll;
     float pitch;
     bool inverted = false;
-    AP::vehicle()->get_osd_roll_pitch_rad(roll,pitch);
+    AP::vehicle()->get_osd_roll_pitch_rad(roll, pitch);
     pitch *= -1;
     // Are we inverted? then flash horizon line
-    if (abs(roll) >= radians(90)) {
-       inverted = true;
+    if (abs(roll) >= radians(90))
+    {
+        inverted = true;
     }
     // Aviation style AH instead of Betaflight FPV style
-    if (inverted && check_option(AP_OSD::OPTION_AVIATION_AH)) {
-        pitch = -pitch;            
+    if (inverted && check_option(AP_OSD::OPTION_AVIATION_AH))
+    {
+        pitch = -pitch;
     }
-    //inverted roll AH (Russian HUD emulation)
-    if (check_option(AP_OSD::OPTION_INVERTED_AH_ROLL)) {
+    // inverted roll AH (Russian HUD emulation)
+    if (check_option(AP_OSD::OPTION_INVERTED_AH_ROLL))
+    {
         roll = -roll;
     }
 
@@ -1625,33 +1668,42 @@ void AP_OSD_Screen::draw_horizon(uint8_t x, uint8_t y)
 
     float ratio = backend->get_aspect_ratio_correction();
 
-    if (fabsf(ky) < fabsf(kx)) {
-        for (int dx = -4; dx <= 4; dx++) {
-            float fy = (ratio * dx) * (ky/kx) + pitch * ah_pitch_rad_to_char + 0.5f;
+    int horizon_length = 6; // Default: 4
+
+    if (fabsf(ky) < fabsf(kx))
+    {
+        for (int dx = -horizon_length; dx <= horizon_length; dx++)
+        {
+            float fy = (ratio * dx) * (ky / kx) + pitch * ah_pitch_rad_to_char + 0.5f;
             int dy = floorf(fy);
             char c = (fy - dy) * SYMBOL(SYM_AH_H_COUNT);
-            //chars in font in reversed order
+            // chars in font in reversed order
             c = SYMBOL(SYM_AH_H_START) + ((SYMBOL(SYM_AH_H_COUNT) - 1) - c);
-            if (dy >= -4 && dy <= 4) {
+            if (dy >= -horizon_length && dy <= horizon_length)
+            {
                 backend->write(x + dx, y - dy, inverted, "%c", c);
             }
         }
-    } else {
-        for (int dy=-4; dy<=4; dy++) {
-            float fx = ((dy / ratio) - pitch * ah_pitch_rad_to_char) * (kx/ky) + 0.5f;
+    }
+    else
+    {
+        for (int dy = -horizon_length; dy <= horizon_length; dy++)
+        {
+            float fx = ((dy / ratio) - pitch * ah_pitch_rad_to_char) * (kx / ky) + 0.5f;
             int dx = floorf(fx);
             char c = (fx - dx) * SYMBOL(SYM_AH_V_COUNT);
             c = SYMBOL(SYM_AH_V_START) + c;
-            if (dx >= -4 && dx <=4) {
+            if (dx >= -horizon_length && dx <= horizon_length)
+            {
                 backend->write(x + dx, y - dy, inverted, "%c", c);
             }
         }
     }
 
-    if (!check_option(AP_OSD::OPTION_DISABLE_CROSSHAIR)) {
-        backend->write(x-1,y, false, "%c%c%c", SYMBOL(SYM_AH_CENTER_LINE_LEFT), SYMBOL(SYM_AH_CENTER), SYMBOL(SYM_AH_CENTER_LINE_RIGHT));
+    if (!check_option(AP_OSD::OPTION_DISABLE_CROSSHAIR))
+    {
+        backend->write(x - 1, y, false, "%c%c%c", SYMBOL(SYM_AH_CENTER_LINE_LEFT), SYMBOL(SYM_AH_CENTER), SYMBOL(SYM_AH_CENTER_LINE_RIGHT));
     }
-
 }
 
 void AP_OSD_Screen::draw_distance(uint8_t x, uint8_t y, float distance)
@@ -1659,20 +1711,30 @@ void AP_OSD_Screen::draw_distance(uint8_t x, uint8_t y, float distance)
     char unit_icon = u_icon(DISTANCE);
     float distance_scaled = u_scale(DISTANCE, distance);
     const char *fmt = "%4.0f%c";
-    if (distance_scaled > 9999.0f || (osd->units == AP_OSD::UNITS_IMPERIAL && distance_scaled > 5280.0f && (osd->options & AP_OSD::OPTION_IMPERIAL_MILES))) {
+    if (distance_scaled > 9999.0f || (osd->units == AP_OSD::UNITS_IMPERIAL && distance_scaled > 5280.0f && (osd->options & AP_OSD::OPTION_IMPERIAL_MILES)))
+    {
         distance_scaled = u_scale(DISTANCE_LONG, distance);
-        unit_icon= u_icon(DISTANCE_LONG);
-        //try to pack as many useful info as possible
-        if (distance_scaled<9.0f) {
+        unit_icon = u_icon(DISTANCE_LONG);
+        // try to pack as many useful info as possible
+        if (distance_scaled < 9.0f)
+        {
             fmt = "%1.3f%c";
-        } else if (distance_scaled < 99.0f) {
+        }
+        else if (distance_scaled < 99.0f)
+        {
             fmt = "%2.2f%c";
-        } else if (distance_scaled < 999.0f) {
+        }
+        else if (distance_scaled < 999.0f)
+        {
             fmt = "%3.1f%c";
-        } else {
+        }
+        else
+        {
             fmt = "%4.0f%c";
         }
-    } else if (distance_scaled < 10.0f) {
+    }
+    else if (distance_scaled < 10.0f)
+    {
         fmt = "% 3.1f%c";
     }
     backend->write(x, y, false, fmt, (double)distance_scaled, unit_icon);
@@ -1683,18 +1745,22 @@ void AP_OSD_Screen::draw_home(uint8_t x, uint8_t y)
     AP_AHRS &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
     Location loc;
-    if (ahrs.get_location(loc) && ahrs.home_is_set()) {
+    if (ahrs.get_location(loc) && ahrs.home_is_set())
+    {
         const Location &home_loc = ahrs.get_home();
         float distance = home_loc.get_distance(loc);
         int32_t angle_cd = loc.get_bearing_to(home_loc) - ahrs.yaw_sensor;
-        if (distance < 2.0f) {
-            //avoid fast rotating arrow at small distances
+        if (distance < 2.0f)
+        {
+            // avoid fast rotating arrow at small distances
             angle_cd = 0;
         }
         char arrow = get_arrow_font_index(angle_cd);
         backend->write(x, y, false, "%c%c", SYMBOL(SYM_HOME), arrow);
-        draw_distance(x+2, y, distance);
-    } else {
+        draw_distance(x + 2, y, distance);
+    }
+    else
+    {
         backend->write(x, y, true, "%c", SYMBOL(SYM_HOME));
     }
 }
@@ -1711,15 +1777,19 @@ void AP_OSD_Screen::draw_rrpm(uint8_t x, uint8_t y)
 {
     float _rrpm;
     const AP_RPM *rpm = AP_RPM::get_singleton();
-    if (rpm != nullptr) {
-            if (!rpm->get_rpm(0, _rrpm)) {
-                // No valid RPM data
-                _rrpm = -1;
-            }
-        } else {
-            // No RPM because pointer is null
+    if (rpm != nullptr)
+    {
+        if (!rpm->get_rpm(0, _rrpm))
+        {
+            // No valid RPM data
             _rrpm = -1;
         }
+    }
+    else
+    {
+        // No RPM because pointer is null
+        _rrpm = -1;
+    }
     int r_rpm = static_cast<int>(_rrpm);
     backend->write(x, y, false, "%4d%c", (int)r_rpm, SYMBOL(SYM_RPM));
 }
@@ -1762,21 +1832,28 @@ void AP_OSD_Screen::draw_sidebars(uint8_t x, uint8_t y)
     AP_AHRS &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
     bool have_speed_estimate = ahrs.airspeed_estimate(aspd);
-    if (!have_speed_estimate) { aspd = 0.0f; }
+    if (!have_speed_estimate)
+    {
+        aspd = 0.0f;
+    }
     ahrs.get_relative_position_D_home(alt);
     float scaled_aspd = u_scale(SPEED, aspd);
     float scaled_alt = u_scale(ALTITUDE, -alt);
-    static const int aspd_interval = 10; //units between large tick marks
+    static const int aspd_interval = 10; // units between large tick marks
     int alt_interval = (osd->units == AP_OSD::UNITS_AVIATION || osd->units == AP_OSD::UNITS_IMPERIAL) ? 20 : 10;
 
     // render airspeed ladder
     int aspd_symbol_index = fmodf(scaled_aspd, aspd_interval) / aspd_interval * total_sectors;
-    for (int i = 0; i < 7; i++){
-        if (i == 3) {
+    for (int i = 0; i < 7; i++)
+    {
+        if (i == 3)
+        {
             // the middle section of the ladder with the currrent airspeed
-            backend->write(x, y+i, false, "%3d%c%c", (int) scaled_aspd, u_icon(SPEED), SYMBOL(SYM_SIDEBAR_R_ARROW));
-        } else {
-            backend->write(x+4, y+i, false,  "%c", SYMBOL(sidebar_sectors[aspd_symbol_index]));
+            backend->write(x, y + i, false, "%3d%c%c", (int)scaled_aspd, u_icon(SPEED), SYMBOL(SYM_SIDEBAR_R_ARROW));
+        }
+        else
+        {
+            backend->write(x + 4, y + i, false, "%c", SYMBOL(sidebar_sectors[aspd_symbol_index]));
         }
         aspd_symbol_index = (aspd_symbol_index + 12) % 18;
     }
@@ -1784,12 +1861,16 @@ void AP_OSD_Screen::draw_sidebars(uint8_t x, uint8_t y)
     // render the altitude ladder
     // similar formula to above, but accounts for negative altitudes
     int alt_symbol_index = fmodf(fmodf(scaled_alt, alt_interval) + alt_interval, alt_interval) / alt_interval * total_sectors;
-    for (int i = 0; i < 7; i++){
-        if (i == 3) {
+    for (int i = 0; i < 7; i++)
+    {
+        if (i == 3)
+        {
             // the middle section of the ladder with the currrent altitude
-            backend->write(x+16, y+i, false, "%c%d%c", SYMBOL(SYM_SIDEBAR_L_ARROW), (int) scaled_alt, u_icon(ALTITUDE));
-        } else {
-            backend->write(x+16, y+i, false,  "%c", SYMBOL(sidebar_sectors[alt_symbol_index]));
+            backend->write(x + 16, y + i, false, "%c%d%c", SYMBOL(SYM_SIDEBAR_L_ARROW), (int)scaled_alt, u_icon(ALTITUDE));
+        }
+        else
+        {
+            backend->write(x + 16, y + i, false, "%c", SYMBOL(sidebar_sectors[alt_symbol_index]));
         }
         alt_symbol_index = (alt_symbol_index + 12) % 18;
     }
@@ -1797,7 +1878,7 @@ void AP_OSD_Screen::draw_sidebars(uint8_t x, uint8_t y)
 
 #endif // HAL_OSD_SIDEBAR_ENABLE
 
-//Thanks to betaflight/inav for simple and clean compass visual design
+// Thanks to betaflight/inav for simple and clean compass visual design
 void AP_OSD_Screen::draw_compass(uint8_t x, uint8_t y)
 {
     const int8_t total_sectors = 16;
@@ -1823,10 +1904,11 @@ void AP_OSD_Screen::draw_compass(uint8_t x, uint8_t y)
     int32_t yaw = ahrs.yaw_sensor;
     int32_t interval = 36000 / total_sectors;
     int8_t center_sector = ((yaw + interval / 2) / interval) % total_sectors;
-    for (int8_t i = -4; i <= 4; i++) {
+    for (int8_t i = -4; i <= 4; i++)
+    {
         int8_t sector = center_sector + i;
         sector = (sector + total_sectors) % total_sectors;
-        backend->write(x + i, y, false,  "%c", SYMBOL(compass_circle[sector]));
+        backend->write(x + i, y, false, "%c", SYMBOL(compass_circle[sector]));
     }
 }
 
@@ -1838,17 +1920,20 @@ void AP_OSD_Screen::draw_wind(uint8_t x, uint8_t y)
     Vector3f v = ahrs.wind_estimate();
     float angle = 0;
     const float length = v.length();
-    if (length > 1.0f) {
-        if (check_option(AP_OSD::OPTION_INVERTED_WIND)) {
+    if (length > 1.0f)
+    {
+        if (check_option(AP_OSD::OPTION_INVERTED_WIND))
+        {
             angle = M_PI;
         }
         angle = angle + atan2f(v.y, v.x) - ahrs.get_yaw();
-    } 
+    }
     draw_speed(x + 1, y, angle, length);
 
 #else
-    const AP_WindVane* windvane = AP_WindVane::get_singleton();
-    if (windvane != nullptr) {
+    const AP_WindVane *windvane = AP_WindVane::get_singleton();
+    if (windvane != nullptr)
+    {
         draw_speed(x + 1, y, windvane->get_apparent_wind_direction_rad() + M_PI, windvane->get_apparent_wind_speed());
     }
 #endif
@@ -1862,9 +1947,12 @@ void AP_OSD_Screen::draw_aspeed(uint8_t x, uint8_t y)
     AP_AHRS &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
     bool have_estimate = ahrs.airspeed_estimate(aspd);
-    if (have_estimate) {
+    if (have_estimate)
+    {
         backend->write(x, y, false, "%c%4d%c", SYMBOL(SYM_ASPD), (int)u_scale(SPEED, aspd), u_icon(SPEED));
-    } else {
+    }
+    else
+    {
         backend->write(x, y, false, "%c ---%c", SYMBOL(SYM_ASPD), u_icon(SPEED));
     }
 }
@@ -1876,27 +1964,40 @@ void AP_OSD_Screen::draw_vspeed(uint8_t x, uint8_t y)
     float vs_scaled;
     AP_AHRS &ahrs = AP::ahrs();
     WITH_SEMAPHORE(ahrs.get_semaphore());
-    if (ahrs.get_velocity_NED(v)) {
+    if (ahrs.get_velocity_NED(v))
+    {
         vspd = -v.z;
-    } else {
+    }
+    else
+    {
         auto &baro = AP::baro();
         WITH_SEMAPHORE(baro.get_semaphore());
         vspd = baro.get_climb_rate();
     }
     char sym;
-    if (vspd > 3.0f) {
+    if (vspd > 3.0f)
+    {
         sym = SYMBOL(SYM_UP_UP);
-    } else if (vspd >=0.0f) {
+    }
+    else if (vspd >= 0.0f)
+    {
         sym = SYMBOL(SYM_UP);
-    } else if (vspd >= -3.0f) {
+    }
+    else if (vspd >= -3.0f)
+    {
         sym = SYMBOL(SYM_DOWN);
-    } else {
+    }
+    else
+    {
         sym = SYMBOL(SYM_DOWN_DOWN);
     }
     vs_scaled = u_scale(VSPEED, fabsf(vspd));
-    if ((osd->units != AP_OSD::UNITS_AVIATION) && (vs_scaled < 9.95f)) {
+    if ((osd->units != AP_OSD::UNITS_AVIATION) && (vs_scaled < 9.95f))
+    {
         backend->write(x, y, false, "%c%.1f%c", sym, (float)vs_scaled, u_icon(VSPEED));
-    } else {
+    }
+    else
+    {
         const char *fmt = osd->units == AP_OSD::UNITS_AVIATION ? "%c%4d%c" : "%c%2d%c";
         backend->write(x, y, false, fmt, sym, (int)roundf(vs_scaled), u_icon(VSPEED));
     }
@@ -1907,7 +2008,8 @@ void AP_OSD_Screen::draw_esc_temp(uint8_t x, uint8_t y)
 {
     int16_t etemp;
     // first parameter is index into array of ESC's.  Hardwire to zero (first) for now.
-    if (!AP::esc_telem().get_temperature(0, etemp)) {
+    if (!AP::esc_telem().get_temperature(0, etemp))
+    {
         return;
     }
 
@@ -1918,7 +2020,8 @@ void AP_OSD_Screen::draw_esc_rpm(uint8_t x, uint8_t y)
 {
     float rpm;
     // first parameter is index into array of ESC's.  Hardwire to zero (first) for now.
-    if (!AP::esc_telem().get_rpm(0, rpm)) {
+    if (!AP::esc_telem().get_rpm(0, rpm))
+    {
         return;
     }
     float krpm = rpm * 0.001f;
@@ -1930,7 +2033,8 @@ void AP_OSD_Screen::draw_esc_amps(uint8_t x, uint8_t y)
 {
     float amps;
     // first parameter is index into array of ESC's.  Hardwire to zero (first) for now.
-    if (!AP::esc_telem().get_current(0, amps)) {
+    if (!AP::esc_telem().get_current(0, amps))
+    {
         return;
     }
     backend->write(x, y, false, "%4.1f%c", amps, SYMBOL(SYM_AMP));
@@ -1939,28 +2043,28 @@ void AP_OSD_Screen::draw_esc_amps(uint8_t x, uint8_t y)
 
 void AP_OSD_Screen::draw_gps_latitude(uint8_t x, uint8_t y)
 {
-    AP_GPS & gps = AP::gps();
-    const Location &loc = gps.location();   // loc.lat and loc.lng
+    AP_GPS &gps = AP::gps();
+    const Location &loc = gps.location(); // loc.lat and loc.lng
     int32_t dec_portion, frac_portion;
     int32_t abs_lat = labs(loc.lat);
 
     dec_portion = loc.lat / 10000000L;
-    frac_portion = abs_lat - labs(dec_portion)*10000000UL;
+    frac_portion = abs_lat - labs(dec_portion) * 10000000UL;
 
-    backend->write(x, y, false, "%c%4ld.%07ld", SYMBOL(SYM_GPS_LAT), (long)dec_portion,(long)frac_portion);
+    backend->write(x, y, false, "%c%4ld.%07ld", SYMBOL(SYM_GPS_LAT), (long)dec_portion, (long)frac_portion);
 }
 
 void AP_OSD_Screen::draw_gps_longitude(uint8_t x, uint8_t y)
 {
-    AP_GPS & gps = AP::gps();
-    const Location &loc = gps.location();   // loc.lat and loc.lng
+    AP_GPS &gps = AP::gps();
+    const Location &loc = gps.location(); // loc.lat and loc.lng
     int32_t dec_portion, frac_portion;
     int32_t abs_lon = labs(loc.lng);
 
     dec_portion = loc.lng / 10000000L;
-    frac_portion = abs_lon - labs(dec_portion)*10000000UL;
+    frac_portion = abs_lon - labs(dec_portion) * 10000000UL;
 
-    backend->write(x, y, false, "%c%4ld.%07ld", SYMBOL(SYM_GPS_LONG), (long)dec_portion,(long)frac_portion);
+    backend->write(x, y, false, "%c%4ld.%07ld", SYMBOL(SYM_GPS_LONG), (long)dec_portion, (long)frac_portion);
 }
 
 void AP_OSD_Screen::draw_roll_angle(uint8_t x, uint8_t y)
@@ -1968,11 +2072,16 @@ void AP_OSD_Screen::draw_roll_angle(uint8_t x, uint8_t y)
     AP_AHRS &ahrs = AP::ahrs();
     uint16_t roll = abs(ahrs.roll_sensor) / 100;
     char r;
-    if (ahrs.roll_sensor > 50) {
+    if (ahrs.roll_sensor > 50)
+    {
         r = SYMBOL(SYM_ROLLR);
-    } else if (ahrs.roll_sensor < -50) {
+    }
+    else if (ahrs.roll_sensor < -50)
+    {
         r = SYMBOL(SYM_ROLLL);
-    } else {
+    }
+    else
+    {
         r = SYMBOL(SYM_ROLL0);
     }
     backend->write(x, y, false, "%c%3d%c", r, roll, SYMBOL(SYM_DEGR));
@@ -1983,11 +2092,16 @@ void AP_OSD_Screen::draw_pitch_angle(uint8_t x, uint8_t y)
     AP_AHRS &ahrs = AP::ahrs();
     uint16_t pitch = abs(ahrs.pitch_sensor) / 100;
     char p;
-    if (ahrs.pitch_sensor > 50) {
+    if (ahrs.pitch_sensor > 50)
+    {
         p = SYMBOL(SYM_PTCHUP);
-    } else if (ahrs.pitch_sensor < -50) {
+    }
+    else if (ahrs.pitch_sensor < -50)
+    {
         p = SYMBOL(SYM_PTCHDWN);
-    } else {
+    }
+    else
+    {
         p = SYMBOL(SYM_PTCH0);
     }
     backend->write(x, y, false, "%c%3d%c", p, pitch, SYMBOL(SYM_DEGR));
@@ -2000,10 +2114,9 @@ void AP_OSD_Screen::draw_temp(uint8_t x, uint8_t y)
     backend->write(x, y, false, "%3d%c", (int)u_scale(TEMPERATURE, tmp), u_icon(TEMPERATURE));
 }
 
-
 void AP_OSD_Screen::draw_hdop(uint8_t x, uint8_t y)
 {
-    AP_GPS & gps = AP::gps();
+    AP_GPS &gps = AP::gps();
     float hdp = gps.get_hdop() * 0.01f;
     backend->write(x, y, false, "%c%c%3.2f", SYMBOL(SYM_HDOP_L), SYMBOL(SYM_HDOP_R), (double)hdp);
 }
@@ -2012,46 +2125,48 @@ void AP_OSD_Screen::draw_waypoint(uint8_t x, uint8_t y)
 {
     AP_AHRS &ahrs = AP::ahrs();
     int32_t angle_cd = osd->nav_info.wp_bearing - ahrs.yaw_sensor;
-    if (osd->nav_info.wp_distance < 2.0f) {
-        //avoid fast rotating arrow at small distances
+    if (osd->nav_info.wp_distance < 2.0f)
+    {
+        // avoid fast rotating arrow at small distances
         angle_cd = 0;
     }
     char arrow = get_arrow_font_index(angle_cd);
-    backend->write(x,y, false, "%c%2u%c",SYMBOL(SYM_WPNO), osd->nav_info.wp_number, arrow);
-    draw_distance(x+4, y, osd->nav_info.wp_distance);
+    backend->write(x, y, false, "%c%2u%c", SYMBOL(SYM_WPNO), osd->nav_info.wp_number, arrow);
+    draw_distance(x + 4, y, osd->nav_info.wp_distance);
 }
 
 void AP_OSD_Screen::draw_xtrack_error(uint8_t x, uint8_t y)
 {
     backend->write(x, y, false, "%c", SYMBOL(SYM_XERR));
-    draw_distance(x+1, y, osd->nav_info.wp_xtrack_error);
+    draw_distance(x + 1, y, osd->nav_info.wp_xtrack_error);
 }
 
 void AP_OSD_Screen::draw_stat(uint8_t x, uint8_t y)
 {
-    backend->write(x+2, y, false, "%c%c%c", 0x4d,0x41,0x58);
-    backend->write(x, y+1, false, "%c",SYMBOL(SYM_GSPD));
-    backend->write(x+1, y+1, false, "%4d%c", (int)u_scale(SPEED, osd->_stats.max_speed_mps), u_icon(SPEED));
-    backend->write(x, y+2, false, "%5.1f%c", (double)osd->_stats.max_current_a, SYMBOL(SYM_AMP));
-    backend->write(x, y+3, false, "%5d%c", (int)u_scale(ALTITUDE, osd->_stats.max_alt_m), u_icon(ALTITUDE));
-    backend->write(x, y+4, false, "%c", SYMBOL(SYM_HOME));
-    draw_distance(x+1, y+4, osd->_stats.max_dist_m);
-    backend->write(x, y+5, false, "%c", SYMBOL(SYM_DIST));
-    draw_distance(x+1, y+5, osd->_stats.last_distance_m);
+    backend->write(x + 2, y, false, "%c%c%c", 0x4d, 0x41, 0x58);
+    backend->write(x, y + 1, false, "%c", SYMBOL(SYM_GSPD));
+    backend->write(x + 1, y + 1, false, "%4d%c", (int)u_scale(SPEED, osd->_stats.max_speed_mps), u_icon(SPEED));
+    backend->write(x, y + 2, false, "%5.1f%c", (double)osd->_stats.max_current_a, SYMBOL(SYM_AMP));
+    backend->write(x, y + 3, false, "%5d%c", (int)u_scale(ALTITUDE, osd->_stats.max_alt_m), u_icon(ALTITUDE));
+    backend->write(x, y + 4, false, "%c", SYMBOL(SYM_HOME));
+    draw_distance(x + 1, y + 4, osd->_stats.max_dist_m);
+    backend->write(x, y + 5, false, "%c", SYMBOL(SYM_DIST));
+    draw_distance(x + 1, y + 5, osd->_stats.last_distance_m);
 }
 
 void AP_OSD_Screen::draw_dist(uint8_t x, uint8_t y)
 {
     backend->write(x, y, false, "%c", SYMBOL(SYM_DIST));
-    draw_distance(x+1, y, osd->_stats.last_distance_m);
+    draw_distance(x + 1, y, osd->_stats.last_distance_m);
 }
 
-void  AP_OSD_Screen::draw_flightime(uint8_t x, uint8_t y)
+void AP_OSD_Screen::draw_flightime(uint8_t x, uint8_t y)
 {
     AP_Stats *stats = AP::stats();
-    if (stats) {
+    if (stats)
+    {
         uint32_t t = stats->get_flight_time_s();
-        backend->write(x, y, false, "%c%3u:%02u", SYMBOL(SYM_FLY), unsigned(t/60), unsigned(t%60));
+        backend->write(x, y, false, "%c%3u:%02u", SYMBOL(SYM_FLY), unsigned(t / 60), unsigned(t % 60));
     }
 }
 
@@ -2064,12 +2179,15 @@ void AP_OSD_Screen::draw_eff(uint8_t x, uint8_t y)
         WITH_SEMAPHORE(ahrs.get_semaphore());
         v = ahrs.groundspeed_vector();
     }
-    float speed = u_scale(SPEED,v.length());
+    float speed = u_scale(SPEED, v.length());
     float current_amps;
-    if ((speed > 2.0) && battery.current_amps(current_amps)) {
-        backend->write(x, y, false, "%c%3d%c", SYMBOL(SYM_EFF),int(1000.0f*current_amps/speed),SYMBOL(SYM_MAH));
-    } else {
-        backend->write(x, y, false, "%c---%c", SYMBOL(SYM_EFF),SYMBOL(SYM_MAH));
+    if ((speed > 2.0) && battery.current_amps(current_amps))
+    {
+        backend->write(x, y, false, "%c%3d%c", SYMBOL(SYM_EFF), int(1000.0f * current_amps / speed), SYMBOL(SYM_MAH));
+    }
+    else
+    {
+        backend->write(x, y, false, "%c---%c", SYMBOL(SYM_EFF), SYMBOL(SYM_MAH));
     }
 }
 
@@ -2078,11 +2196,13 @@ void AP_OSD_Screen::draw_climbeff(uint8_t x, uint8_t y)
     char unit_icon = u_icon(DISTANCE);
     Vector3f v;
     float vspd;
-    do {
+    do
+    {
         {
             auto &ahrs = AP::ahrs();
             WITH_SEMAPHORE(ahrs.get_semaphore());
-            if (ahrs.get_velocity_NED(v)) {
+            if (ahrs.get_velocity_NED(v))
+            {
                 vspd = -v.z;
                 break;
             }
@@ -2091,15 +2211,19 @@ void AP_OSD_Screen::draw_climbeff(uint8_t x, uint8_t y)
         WITH_SEMAPHORE(baro.get_semaphore());
         vspd = baro.get_climb_rate();
     } while (false);
-    if (vspd < 0.0) {
+    if (vspd < 0.0)
+    {
         vspd = 0.0;
     }
     AP_BattMonitor &battery = AP::battery();
     float amps;
-    if (battery.current_amps(amps) && is_positive(amps)) {
-        backend->write(x, y, false,"%c%c%3.1f%c",SYMBOL(SYM_PTCHUP),SYMBOL(SYM_EFF),(double)(3.6f * u_scale(VSPEED,vspd)/amps),unit_icon);
-    } else {
-        backend->write(x, y, false,"%c%c---%c",SYMBOL(SYM_PTCHUP),SYMBOL(SYM_EFF),unit_icon);
+    if (battery.current_amps(amps) && is_positive(amps))
+    {
+        backend->write(x, y, false, "%c%c%3.1f%c", SYMBOL(SYM_PTCHUP), SYMBOL(SYM_EFF), (double)(3.6f * u_scale(VSPEED, vspd) / amps), unit_icon);
+    }
+    else
+    {
+        backend->write(x, y, false, "%c%c---%c", SYMBOL(SYM_PTCHUP), SYMBOL(SYM_EFF), unit_icon);
     }
 }
 
@@ -2116,14 +2240,18 @@ void AP_OSD_Screen::draw_atemp(uint8_t x, uint8_t y)
 {
 #if AP_AIRSPEED_ENABLED
     AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
-    if (!airspeed) {
+    if (!airspeed)
+    {
         return;
     }
     float temperature = 0;
     airspeed->get_temperature(temperature);
-    if (airspeed->healthy()) {
+    if (airspeed->healthy())
+    {
         backend->write(x, y, false, "%3d%c", (int)u_scale(TEMPERATURE, temperature), u_icon(TEMPERATURE));
-    } else {
+    }
+    else
+    {
         backend->write(x, y, false, "--%c", u_icon(TEMPERATURE));
     }
 #endif
@@ -2131,7 +2259,7 @@ void AP_OSD_Screen::draw_atemp(uint8_t x, uint8_t y)
 
 void AP_OSD_Screen::draw_bat2_vlt(uint8_t x, uint8_t y)
 {
-    draw_bat_volt(1,VoltageType::VOLTAGE,x,y);
+    draw_bat_volt(1, VoltageType::VOLTAGE, x, y);
 }
 
 void AP_OSD_Screen::draw_bat2used(uint8_t x, uint8_t y)
@@ -2143,13 +2271,17 @@ void AP_OSD_Screen::draw_aspd1(uint8_t x, uint8_t y)
 {
 #if AP_AIRSPEED_ENABLED
     AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
-    if (!airspeed) {
+    if (!airspeed)
+    {
         return;
     }
     float asp1 = airspeed->get_airspeed();
-    if (airspeed != nullptr && airspeed->healthy()) {
+    if (airspeed != nullptr && airspeed->healthy())
+    {
         backend->write(x, y, false, "%c%4d%c", SYMBOL(SYM_ASPD), (int)u_scale(SPEED, asp1), u_icon(SPEED));
-    } else {
+    }
+    else
+    {
         backend->write(x, y, false, "%c ---%c", SYMBOL(SYM_ASPD), u_icon(SPEED));
     }
 #endif
@@ -2159,13 +2291,17 @@ void AP_OSD_Screen::draw_aspd2(uint8_t x, uint8_t y)
 {
 #if AP_AIRSPEED_ENABLED
     AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
-    if (!airspeed) {
+    if (!airspeed)
+    {
         return;
     }
     float asp2 = airspeed->get_airspeed(1);
-    if (airspeed != nullptr && airspeed->healthy(1)) {
+    if (airspeed != nullptr && airspeed->healthy(1))
+    {
         backend->write(x, y, false, "%c%4d%c", SYMBOL(SYM_ASPD), (int)u_scale(SPEED, asp2), u_icon(SPEED));
-    } else {
+    }
+    else
+    {
         backend->write(x, y, false, "%c ---%c", SYMBOL(SYM_ASPD), u_icon(SPEED));
     }
 #endif
@@ -2177,10 +2313,13 @@ void AP_OSD_Screen::draw_clk(uint8_t x, uint8_t y)
     AP_RTC &rtc = AP::rtc();
     uint8_t hour, min, sec;
     uint16_t ms;
-    if (!rtc.get_local_time(hour, min, sec, ms)) {
-    backend->write(x, y, false, "%c--:--", SYMBOL(SYM_CLK));
-    } else {
-    backend->write(x, y, false, "%c%02u:%02u", SYMBOL(SYM_CLK), hour, min);
+    if (!rtc.get_local_time(hour, min, sec, ms))
+    {
+        backend->write(x, y, false, "%c--:--", SYMBOL(SYM_CLK));
+    }
+    else
+    {
+        backend->write(x, y, false, "%c%02u:%02u", SYMBOL(SYM_CLK), hour, min);
     }
 }
 #endif
@@ -2188,12 +2327,15 @@ void AP_OSD_Screen::draw_clk(uint8_t x, uint8_t y)
 #if HAL_PLUSCODE_ENABLE
 void AP_OSD_Screen::draw_pluscode(uint8_t x, uint8_t y)
 {
-    AP_GPS & gps = AP::gps();
+    AP_GPS &gps = AP::gps();
     const Location &loc = gps.location();
     char buff[16];
-    if (gps.status() == AP_GPS::NO_GPS || gps.status() == AP_GPS::NO_FIX){
+    if (gps.status() == AP_GPS::NO_GPS || gps.status() == AP_GPS::NO_FIX)
+    {
         backend->write(x, y, false, "--------+--");
-    } else {
+    }
+    else
+    {
         AP_OLC::olc_encode(loc.lat, loc.lng, 10, buff, sizeof(buff));
         backend->write(x, y, false, "%s", buff);
     }
@@ -2203,12 +2345,9 @@ void AP_OSD_Screen::draw_pluscode(uint8_t x, uint8_t y)
 #ifdef ADELPHI_CUSTOM_PLANE
 void AP_OSD_Screen::draw_adelphi_status(uint8_t x, uint8_t y)
 {
-    AdelphiLinker *adelphi = AdelphiLinker::get_singleton();
-    if (!adelphi) {
-        return;
-    }
-    //STATUS status = adelphi->get_status();
-    backend->write(x, y, false, "%s", "Hello!");
+    // AdelphiLinker &adelphi = AP::adelphi();
+    //  STATUS status = adelphi->get_status();
+    backend->write(x, y, false, "%s", "ADELPHI!");
 }
 #endif
 /*
@@ -2217,20 +2356,24 @@ void AP_OSD_Screen::draw_adelphi_status(uint8_t x, uint8_t y)
 void AP_OSD_Screen::draw_callsign(uint8_t x, uint8_t y)
 {
 #if AP_OSD_CALLSIGN_FROM_SD_ENABLED
-    if (!callsign_data.load_attempted) {
+    if (!callsign_data.load_attempted)
+    {
         callsign_data.load_attempted = true;
         FileData *fd = AP::FS().load_file("callsign.txt");
-        if (fd != nullptr) {
+        if (fd != nullptr)
+        {
             uint32_t len = fd->length;
             // trim off whitespace
-            while (len > 0 && isspace(fd->data[len-1])) {
+            while (len > 0 && isspace(fd->data[len - 1]))
+            {
                 len--;
             }
             callsign_data.str = strndup((const char *)fd->data, len);
             delete fd;
         }
     }
-    if (callsign_data.str != nullptr) {
+    if (callsign_data.str != nullptr)
+    {
         backend->write(x, y, false, "%s", callsign_data.str);
     }
 #endif
@@ -2245,17 +2388,19 @@ void AP_OSD_Screen::draw_current2(uint8_t x, uint8_t y)
 void AP_OSD_Screen::draw_vtx_power(uint8_t x, uint8_t y)
 {
     AP_VideoTX *vtx = AP_VideoTX::get_singleton();
-    if (!vtx) {
+    if (!vtx)
+    {
         return;
     }
     uint16_t powr = 0;
     // If currently in pit mode, just render 0mW to the screen
-    if(!vtx->has_option(AP_VideoTX::VideoOptions::VTX_PITMODE)){
+    if (!vtx->has_option(AP_VideoTX::VideoOptions::VTX_PITMODE))
+    {
         powr = vtx->get_power_mw();
     }
     backend->write(x, y, !vtx->is_configuration_finished(), "%4hu%c", powr, SYMBOL(SYM_MW));
 }
-#endif  // AP_VIDEOTX_ENABLED
+#endif // AP_VIDEOTX_ENABLED
 
 #if AP_TERRAIN_AVAILABLE
 void AP_OSD_Screen::draw_hgt_abvterr(uint8_t x, uint8_t y)
@@ -2263,12 +2408,15 @@ void AP_OSD_Screen::draw_hgt_abvterr(uint8_t x, uint8_t y)
     AP_Terrain *terrain = AP::terrain();
 
     float terrain_altitude;
-    if (terrain != nullptr && terrain->height_above_terrain(terrain_altitude,true)) {
-        bool blink = (osd->warn_terr != -1)? (terrain_altitude < osd->warn_terr) : false; //blink if warn_terr is not disabled and alt above terrain is below warning value
+    if (terrain != nullptr && terrain->height_above_terrain(terrain_altitude, true))
+    {
+        bool blink = (osd->warn_terr != -1) ? (terrain_altitude < osd->warn_terr) : false; // blink if warn_terr is not disabled and alt above terrain is below warning value
         backend->write(x, y, blink, "%4d%c%c", (int)u_scale(ALTITUDE, terrain_altitude), u_icon(ALTITUDE), SYMBOL(SYM_TERALT));
-     } else {
-        backend->write(x, y, false, " ---%c%c", u_icon(ALTITUDE),SYMBOL(SYM_TERALT));
-     }
+    }
+    else
+    {
+        backend->write(x, y, false, " ---%c%c", u_icon(ALTITUDE), SYMBOL(SYM_TERALT));
+    }
 }
 #endif
 
@@ -2276,12 +2424,16 @@ void AP_OSD_Screen::draw_hgt_abvterr(uint8_t x, uint8_t y)
 void AP_OSD_Screen::draw_fence(uint8_t x, uint8_t y)
 {
     AC_Fence *fenceptr = AP::fence();
-    if (fenceptr == nullptr) {
-       return;
+    if (fenceptr == nullptr)
+    {
+        return;
     }
-    if (fenceptr->enabled() && fenceptr->present()) {
+    if (fenceptr->enabled() && fenceptr->present())
+    {
         backend->write(x, y, fenceptr->get_breaches(), "%c", SYMBOL(SYM_FENCE_ENABLED));
-    } else {
+    }
+    else
+    {
         backend->write(x, y, false, "%c", SYMBOL(SYM_FENCE_DISABLED));
     }
 }
@@ -2290,28 +2442,35 @@ void AP_OSD_Screen::draw_fence(uint8_t x, uint8_t y)
 void AP_OSD_Screen::draw_rngf(uint8_t x, uint8_t y)
 {
     RangeFinder *rangefinder = RangeFinder::get_singleton();
-    if (rangefinder == nullptr) {
-       return;
+    if (rangefinder == nullptr)
+    {
+        return;
     }
-    if (rangefinder->status_orient(ROTATION_PITCH_270) < RangeFinder::Status::Good) {
+    if (rangefinder->status_orient(ROTATION_PITCH_270) < RangeFinder::Status::Good)
+    {
         backend->write(x, y, false, "%c---%c", SYMBOL(SYM_RNGFD), u_icon(DISTANCE));
-    } else {
+    }
+    else
+    {
         const float distance = rangefinder->distance_orient(ROTATION_PITCH_270);
         backend->write(x, y, false, "%c%4.1f%c", SYMBOL(SYM_RNGFD), u_scale(DISTANCE, distance), u_icon(DISTANCE));
     }
 }
 
-#define DRAW_SETTING(n) if (n.enabled) draw_ ## n(n.xpos, n.ypos)
+#define DRAW_SETTING(n) \
+    if (n.enabled)      \
+    draw_##n(n.xpos, n.ypos)
 
 #if HAL_WITH_OSD_BITMAP || HAL_WITH_MSP_DISPLAYPORT
 void AP_OSD_Screen::draw(void)
 {
-    if (!enabled || !backend) {
+    if (!enabled || !backend)
+    {
         return;
     }
-    //Note: draw order should be optimized.
-    //Big and less important items should be drawn first,
-    //so they will not overwrite more important ones.
+    // Note: draw order should be optimized.
+    // Big and less important items should be drawn first,
+    // so they will not overwrite more important ones.
 #if HAL_OSD_SIDEBAR_ENABLE
     DRAW_SETTING(sidebars);
 #endif
@@ -2388,6 +2547,10 @@ void AP_OSD_Screen::draw(void)
     DRAW_SETTING(eff);
     DRAW_SETTING(callsign);
     DRAW_SETTING(current2);
+
+#ifdef ADELPHI_CUSTOM_PLANE
+    DRAW_SETTING(adelphi_status);
+#endif
 }
 #endif
 #endif // OSD_ENABLED

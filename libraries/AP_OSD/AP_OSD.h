@@ -78,6 +78,7 @@ class AP_OSD;
 class AP_OSD_AbstractScreen
 {
     friend class AP_OSD;
+
 public:
     // constructor
     AP_OSD_AbstractScreen() {}
@@ -92,21 +93,24 @@ public:
 protected:
     bool check_option(uint32_t option);
 #if HAL_WITH_MSP_DISPLAYPORT
-    virtual uint8_t get_txt_resolution() const {
+    virtual uint8_t get_txt_resolution() const
+    {
         return 0;
     }
-    virtual uint8_t get_font_index() const {
+    virtual uint8_t get_font_index() const
+    {
         return 0;
     }
 #endif
-    enum unit_type {
-        ALTITUDE=0,
-        SPEED=1,
-        VSPEED=2,
-        DISTANCE=3,
-        DISTANCE_LONG=4,
-        TEMPERATURE=5,
-        UNIT_TYPE_LAST=6,
+    enum unit_type
+    {
+        ALTITUDE = 0,
+        SPEED = 1,
+        VSPEED = 2,
+        DISTANCE = 3,
+        DISTANCE_LONG = 4,
+        TEMPERATURE = 5,
+        UNIT_TYPE_LAST = 6,
     };
 
     char u_icon(enum unit_type unit);
@@ -139,10 +143,12 @@ public:
     static const struct AP_Param::GroupInfo var_info2[];
 
 #if HAL_WITH_MSP_DISPLAYPORT
-    uint8_t get_txt_resolution() const override {
+    uint8_t get_txt_resolution() const override
+    {
         return txt_resolution;
     }
-    uint8_t get_font_index() const override {
+    uint8_t get_font_index() const override
+    {
         return font_index;
     }
 #endif
@@ -156,10 +162,11 @@ private:
     static const uint8_t message_scroll_delay = 5;
 
     static constexpr float ah_max_pitch = DEG_TO_RAD * 20;
-    //typical fpv camera has 80deg vertical field of view, 16 row of chars
-    static constexpr float ah_pitch_rad_to_char = 16.0f/(DEG_TO_RAD * 80);
+    // typical fpv camera has 80deg vertical field of view, 16 row of chars
+    static constexpr float ah_pitch_rad_to_char = 16.0f / (DEG_TO_RAD * 80);
 
-    enum class VoltageType {
+    enum class VoltageType
+    {
         VOLTAGE,
         RESTING_VOLTAGE,
         AVG_CELL,
@@ -169,7 +176,7 @@ private:
     AP_OSD_Setting altitude{true, 23, 8};
     AP_OSD_Setting bat_volt{true, 24, 1};
     AP_OSD_Setting rssi{true, 1, 1};
-    AP_OSD_Setting link_quality{false,1,1};
+    AP_OSD_Setting link_quality{false, 1, 1};
     AP_OSD_Setting restvolt{false, 24, 2};
     AP_OSD_Setting avgcellvolt{false, 24, 3};
     AP_OSD_Setting avgcellrestvolt{false, 24, 4};
@@ -193,7 +200,7 @@ private:
     AP_OSD_Setting rrpm{false, 2, 2};
 #endif
 #if HAL_WITH_ESC_TELEM
-    AP_OSD_Setting esc_temp {false, 24, 13};
+    AP_OSD_Setting esc_temp{false, 24, 13};
     AP_OSD_Setting esc_rpm{false, 22, 12};
     AP_OSD_Setting esc_amps{false, 24, 14};
 #endif
@@ -208,10 +215,10 @@ private:
     AP_OSD_Setting hdop;
     AP_OSD_Setting waypoint;
     AP_OSD_Setting xtrack_error;
-    AP_OSD_Setting dist{false,22,11};
-    AP_OSD_Setting stat{false,0,0};
+    AP_OSD_Setting dist{false, 22, 11};
+    AP_OSD_Setting stat{false, 0, 0};
     AP_OSD_Setting flightime{false, 23, 10};
-    AP_OSD_Setting climbeff{false,0,0};
+    AP_OSD_Setting climbeff{false, 0, 0};
     AP_OSD_Setting eff{false, 22, 10};
     AP_OSD_Setting atemp;
     AP_OSD_Setting bat2_vlt;
@@ -248,7 +255,7 @@ private:
 #endif
 
     void draw_altitude(uint8_t x, uint8_t y);
-    void draw_bat_volt(uint8_t instance,VoltageType  type,uint8_t x, uint8_t y);
+    void draw_bat_volt(uint8_t instance, VoltageType type, uint8_t x, uint8_t y);
     void draw_bat_volt(uint8_t x, uint8_t y);
     void draw_avgcellvolt(uint8_t x, uint8_t y);
     void draw_avgcellrestvolt(uint8_t x, uint8_t y);
@@ -285,10 +292,10 @@ private:
 #ifdef ADELPHI_CUSTOM_PLANE
     void draw_adelphi_status(uint8_t x, uint8_t y);
 #endif
-    //helper functions
+    // helper functions
     void draw_speed(uint8_t x, uint8_t y, float angle_rad, float magnitude);
     void draw_distance(uint8_t x, uint8_t y, float distance);
-    char get_arrow_font_index (int32_t angle_cd);
+    char get_arrow_font_index(int32_t angle_cd);
 #if HAL_WITH_ESC_TELEM
     void draw_esc_temp(uint8_t x, uint8_t y);
     void draw_esc_rpm(uint8_t x, uint8_t y);
@@ -323,7 +330,8 @@ private:
 #endif
     void draw_rngf(uint8_t x, uint8_t y);
 
-    struct {
+    struct
+    {
         bool load_attempted;
         const char *str;
     } callsign_data;
@@ -337,7 +345,6 @@ private:
 class AP_OSD_ParamSetting
 {
 public:
-
     AP_Int8 enabled;
     AP_Int8 xpos;
     AP_Int8 ypos;
@@ -345,7 +352,7 @@ public:
     // configured index.
     AP_Int32 _param_group;
     AP_Int16 _param_key;
-    AP_Int8  _param_idx;
+    AP_Int8 _param_idx;
     // metadata
     AP_Float _param_min;
     AP_Float _param_max;
@@ -354,20 +361,22 @@ public:
 
     // parameter number
     uint8_t _param_number;
-    AP_Param* _param;
+    AP_Param *_param;
     ap_var_type _param_type;
     AP_Param::ParamToken _current_token;
 
     // structure to contain setting constraints for important settings
-    struct ParamMetadata {
+    struct ParamMetadata
+    {
         float min_value;
         float max_value;
         float increment;
         uint8_t values_max;
-        const char** values;
+        const char **values;
     };
     // compact structure used to hold default values for static initialization
-    struct Initializer {
+    struct Initializer
+    {
         uint8_t index;
         AP_Param::ParamToken token;
         int8_t type;
@@ -375,26 +384,29 @@ public:
 
     static const ParamMetadata _param_metadata[];
 
-    AP_OSD_ParamSetting() {};
+    AP_OSD_ParamSetting(){};
     AP_OSD_ParamSetting(uint8_t param_number);
-    AP_OSD_ParamSetting(const Initializer& initializer);
+    AP_OSD_ParamSetting(const Initializer &initializer);
 
     // initialize the setting from the configured information
     void update();
     // grab the parameter name
-    void copy_name(char* name, size_t len) const {
+    void copy_name(char *name, size_t len) const
+    {
         _param->copy_name_token(_current_token, name, len);
-        if (len > 16) name[16] = 0;
+        if (len > 16)
+            name[16] = 0;
     }
     // copy the name converting FOO_BAR_BAZ to FooBarBaz
-    void copy_name_camel_case(char* name, size_t len) const;
+    void copy_name_camel_case(char *name, size_t len) const;
     // set the ranges from static metadata
     bool set_from_metadata();
-    bool set_by_name(const char* name, uint8_t config_type, float pmin=0, float pmax=0, float pincr=0);
+    bool set_by_name(const char *name, uint8_t config_type, float pmin = 0, float pmax = 0, float pincr = 0);
     void guess_ranges(bool force = false);
     void save_as_new();
 
-    const ParamMetadata* get_custom_metadata() const {
+    const ParamMetadata *get_custom_metadata() const
+    {
         return (_type > 0 ? &_param_metadata[_type - 1] : nullptr);
     }
 
@@ -408,7 +420,6 @@ private:
     float default_param_idx;
     float default_param_key;
     float default_type;
-
 };
 
 /*
@@ -419,7 +430,8 @@ class AP_OSD_ParamScreen : public AP_OSD_AbstractScreen
 public:
     AP_OSD_ParamScreen(uint8_t index);
 
-    enum class Event {
+    enum class Event
+    {
         NONE,
         MENU_ENTER,
         MENU_UP,
@@ -427,7 +439,8 @@ public:
         MENU_EXIT
     };
 
-    enum class MenuState {
+    enum class MenuState
+    {
         PARAM_SELECT,
         PARAM_VALUE_MODIFY,
         PARAM_PARAM_MODIFY
@@ -440,11 +453,11 @@ public:
     void draw(void) override;
 #endif
 #if HAL_GCS_ENABLED
-    void handle_write_msg(const mavlink_osd_param_config_t& packet, const class GCS_MAVLINK& link);
-    void handle_read_msg(const mavlink_osd_param_show_config_t& packet, const class GCS_MAVLINK& link);
+    void handle_write_msg(const mavlink_osd_param_config_t &packet, const class GCS_MAVLINK &link);
+    void handle_read_msg(const mavlink_osd_param_show_config_t &packet, const class GCS_MAVLINK &link);
 #endif
     // get a setting and associated metadata
-    AP_OSD_ParamSetting* get_setting(uint8_t param_idx);
+    AP_OSD_ParamSetting *get_setting(uint8_t param_idx);
     // Save button co-ordinates
     AP_Int8 save_x;
     AP_Int8 save_y;
@@ -490,7 +503,7 @@ public:
     friend class AP_MSP;
     friend class AP_MSP_Telem_Backend;
     friend class AP_OSD_ParamScreen;
-    //constructor
+    // constructor
     AP_OSD();
 
     /* Do not allow copies */
@@ -508,21 +521,23 @@ public:
     // User settable parameters
     static const struct AP_Param::GroupInfo var_info[];
 
-    enum osd_types {
-        OSD_NONE=0,
-        OSD_MAX7456=1,
-        OSD_SITL=2,
-        OSD_MSP=3,
-        OSD_TXONLY=4,
-        OSD_MSP_DISPLAYPORT=5
+    enum osd_types
+    {
+        OSD_NONE = 0,
+        OSD_MAX7456 = 1,
+        OSD_SITL = 2,
+        OSD_MSP = 3,
+        OSD_TXONLY = 4,
+        OSD_MSP_DISPLAYPORT = 5
     };
 
     bool init_backend(const osd_types type, const uint8_t instance);
 
-    enum switch_method {
-        TOGGLE=0,
-        PWM_RANGE=1,
-        AUTO_SWITCH=2,
+    enum switch_method
+    {
+        TOGGLE = 0,
+        PWM_RANGE = 1,
+        AUTO_SWITCH = 2,
     };
 
     AP_Int8 osd_type;
@@ -553,36 +568,40 @@ public:
     AP_Int8 failsafe_scr;
     AP_Int32 button_delay_ms;
 
-    enum {
-        OPTION_DECIMAL_PACK = 1U<<0,
-        OPTION_INVERTED_WIND = 1U<<1,
-        OPTION_INVERTED_AH_ROLL = 1U<<2,
-        OPTION_IMPERIAL_MILES = 1U<<3,
-        OPTION_DISABLE_CROSSHAIR = 1U<<4,
-        OPTION_BF_ARROWS = 1U<<5,
-        OPTION_AVIATION_AH = 1U<<6,
+    enum
+    {
+        OPTION_DECIMAL_PACK = 1U << 0,
+        OPTION_INVERTED_WIND = 1U << 1,
+        OPTION_INVERTED_AH_ROLL = 1U << 2,
+        OPTION_IMPERIAL_MILES = 1U << 3,
+        OPTION_DISABLE_CROSSHAIR = 1U << 4,
+        OPTION_BF_ARROWS = 1U << 5,
+        OPTION_AVIATION_AH = 1U << 6,
     };
 
-    enum {
-        UNITS_METRIC=0,
-        UNITS_IMPERIAL=1,
-        UNITS_SI=2,
-        UNITS_AVIATION=3,
-        UNITS_LAST=4,
+    enum
+    {
+        UNITS_METRIC = 0,
+        UNITS_IMPERIAL = 1,
+        UNITS_SI = 2,
+        UNITS_AVIATION = 3,
+        UNITS_LAST = 4,
     };
 
     AP_Int8 units;
 
     AP_OSD_Screen screen[AP_OSD_NUM_DISPLAY_SCREENS];
 
-    struct NavInfo {
+    struct NavInfo
+    {
         float wp_distance;
         int32_t wp_bearing;
         float wp_xtrack_error;
         uint16_t wp_number;
     };
 
-    struct StatsInfo {
+    struct StatsInfo
+    {
         uint32_t last_update_ms;
         float last_distance_m;
         float max_dist_m;
@@ -592,24 +611,28 @@ public:
         float max_current_a;
         float avg_current_a;
         float min_voltage_v = FLT_MAX;
-        float min_rssi = FLT_MAX;   // 0-1
+        float min_rssi = FLT_MAX; // 0-1
         int16_t max_esc_temp;
     };
 
     void set_nav_info(NavInfo &nav_info);
-    const volatile StatsInfo& get_stats_info() const {return _stats;};
+    const volatile StatsInfo &get_stats_info() const { return _stats; };
     // disable the display
-    void disable() {
+    void disable()
+    {
         _disable = true;
     }
     // enable the display
-    void enable() {
+    void enable()
+    {
         _disable = false;
     }
 
-    AP_OSD_AbstractScreen& get_screen(uint8_t idx) {
+    AP_OSD_AbstractScreen &get_screen(uint8_t idx)
+    {
 #if OSD_PARAM_ENABLED
-        if (idx >= AP_OSD_NUM_DISPLAY_SCREENS) {
+        if (idx >= AP_OSD_NUM_DISPLAY_SCREENS)
+        {
             return param_screen[idx - AP_OSD_NUM_DISPLAY_SCREENS];
         }
 #endif
@@ -623,10 +646,12 @@ public:
     uint8_t get_current_screen() const { return current_screen; };
 #endif // OSD_ENABLED
 #if OSD_PARAM_ENABLED
-    AP_OSD_ParamScreen param_screen[AP_OSD_NUM_PARAM_SCREENS] { 0, 1 };
+    AP_OSD_ParamScreen param_screen[AP_OSD_NUM_PARAM_SCREENS]{0, 1};
     // return a setting for use by TX based OSD
-    AP_OSD_ParamSetting* get_setting(uint8_t screen_idx, uint8_t param_idx) {
-        if (screen_idx >= AP_OSD_NUM_PARAM_SCREENS) {
+    AP_OSD_ParamSetting *get_setting(uint8_t screen_idx, uint8_t param_idx)
+    {
+        if (screen_idx >= AP_OSD_NUM_PARAM_SCREENS)
+        {
             return nullptr;
         }
         return param_screen[screen_idx].get_setting(param_idx);
@@ -634,11 +659,12 @@ public:
 #endif
     // handle OSD parameter configuration
 #if HAL_GCS_ENABLED
-    void handle_msg(const mavlink_message_t &msg, const class GCS_MAVLINK& link);
+    void handle_msg(const mavlink_message_t &msg, const class GCS_MAVLINK &link);
 #endif
 
     // allow threads to lock against OSD update
-    HAL_Semaphore &get_semaphore(void) {
+    HAL_Semaphore &get_semaphore(void)
+    {
         return _sem;
     }
 
@@ -650,7 +676,7 @@ private:
     void update_current_screen();
     void next_screen();
 
-    //variables for screen switching
+    // variables for screen switching
     uint8_t current_screen;
     uint16_t previous_channel_value;
     bool switch_debouncer;
@@ -674,5 +700,5 @@ private:
 
 namespace AP
 {
-AP_OSD *osd();
+    AP_OSD *osd();
 };

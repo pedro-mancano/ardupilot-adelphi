@@ -62,7 +62,7 @@ void Adelphi::io_timer()
     hal.scheduler->delay_microseconds(delay);
     last_run_us = AP_HAL::micros();
 
-    int nbytes = this->writebuf.available();
+    uint32_t nbytes = this->writebuf.available();
 
     if (nbytes == 0)
     {

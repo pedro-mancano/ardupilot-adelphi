@@ -31,20 +31,22 @@ class AP_OSD_SITL : public AP_OSD_Backend
 public:
     static AP_OSD_Backend *probe(AP_OSD &osd);
 
-    //draw given text to framebuffer
-    void write(uint8_t x, uint8_t y, const char* text) override;
+    // draw given text to framebuffer
+    void write(uint8_t x, uint8_t y, const char *text) override;
 
-    //initialize display port and underlying hardware
+    // initialize display port and underlying hardware
     bool init() override;
 
-    //flush framebuffer to screen
+    // flush framebuffer to screen
     void flush() override;
 
-    //clear framebuffer
+    // clear framebuffer
     void clear() override;
 
-    bool is_compatible_with_backend_type(AP_OSD::osd_types type) const override {
-        switch(type) {
+    bool is_compatible_with_backend_type(AP_OSD::osd_types type) const override
+    {
+        switch (type)
+        {
         case AP_OSD::osd_types::OSD_MAX7456:
         case AP_OSD::osd_types::OSD_SITL:
             return false;
@@ -57,11 +59,13 @@ public:
         return false;
     }
 
-    AP_OSD::osd_types get_backend_type() const override {
+    AP_OSD::osd_types get_backend_type() const override
+    {
         return AP_OSD::osd_types::OSD_SITL;
     }
+
 private:
-    //constructor
+    // constructor
     AP_OSD_SITL(AP_OSD &osd);
 
     sf::RenderWindow *w;
@@ -72,8 +76,8 @@ private:
     // setup to match MAX7456 layout
     static const uint8_t char_width = 12;
     static const uint8_t char_height = 18;
-    static const uint8_t video_lines = 16; // PAL
-    static const uint8_t video_cols = 30;
+    static const uint8_t video_lines = 20; // Walksnail
+    static const uint8_t video_cols = 53;
     static const uint8_t char_spacing = 0;
 
     // scaling factor to make it easier to read
