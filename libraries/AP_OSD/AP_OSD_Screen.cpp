@@ -47,6 +47,11 @@
 #if APM_BUILD_TYPE(APM_BUILD_Rover)
 #include <AP_WindVane/AP_WindVane.h>
 #endif
+
+if APM_BUILD_TYPE(APM_BUILD_ArduPlane)
+#include <AC_Adelphi/AdelphiLinker.h>
+#endif
+
 #include <AP_Filesystem/AP_Filesystem.h>
 
 #include <ctype.h>
@@ -1037,6 +1042,25 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
 	// @Description: Vertical position on screen
 	// @Range: 0 15
 	AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
+#endif
+
+#ifdef ADELPHI_CUSTOM_PLANE
+    // @Param: ADELPHI_STATUS
+    // @DisplayName: ADELPHI_STATUS
+    // @Description: Displays Adelphi status
+    // @Values: 0:Disabled,1:Enabled
+
+    // @Param: ADELPHI_X
+    // @DisplayName: ADELPHI_X
+    // @Description: Horizontal position on screen
+    // @Range: 0 59
+
+    // @Param: ADELPHI_Y
+    // @DisplayName: ADELPHI_Y
+    // @Description: Vertical position on screen
+    // @Range: 0 21
+
+    AP_SUBGROUPINFO(adelphi_status, "ADELPHI", 63, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
     AP_GROUPEND
@@ -2180,6 +2204,17 @@ void AP_OSD_Screen::draw_pluscode(uint8_t x, uint8_t y)
 }
 #endif
 
+#ifdef ADELPHI_CUSTOM_PLANE
+void AP_OSD_Screen::draw_adelphi_status(uint8_t x, uint8_t y)
+{
+    AdelphiLinker *adelphi = AdelphiLinker::get_singleton();
+    if (!adelphi) {
+        return;
+    }
+    STATUS status = adelphi->get_status();
+    backend->write(x, y, false, "%c", adelphi->status_to_string(status));
+}
+#endif
 /*
   support callsign display from a file called callsign.txt
  */
