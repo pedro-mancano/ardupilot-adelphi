@@ -124,6 +124,7 @@
 #include "AP_Arming.h"
 
 #include "Adelphi.h"
+#include <AC_AdelphiLinker/AdelphiLinker.h>
 
 /*
   main APM:Plane class

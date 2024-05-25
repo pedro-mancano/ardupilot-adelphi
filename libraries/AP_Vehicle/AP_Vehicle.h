@@ -68,6 +68,7 @@
 #include <Filter/LowPassFilter.h>
 #include <AP_KDECAN/AP_KDECAN.h>
 #include <Filter/AP_Filter.h>
+#include <AC_AdelphiLinker/AdelphiLinker.h>
 
 class AP_DDS_Client;
 
@@ -338,6 +339,10 @@ protected:
 
     // Inertial Navigation EKF
     AP_AHRS ahrs;
+
+#ifdef ADELPHI_CUSTOM_PLANE
+    AdelphiLinker adelphi_linker;
+#endif
 
 #if HAL_HOTT_TELEM_ENABLED
     AP_Hott_Telem hott_telem;

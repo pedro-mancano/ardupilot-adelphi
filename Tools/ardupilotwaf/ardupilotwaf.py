@@ -116,6 +116,7 @@ COMMON_VEHICLE_DEPENDENT_LIBRARIES = [
     'AP_OpenDroneID',
     'AP_CheckFirmware',
     'AP_ExternalControl',
+    'AC_AdelphiLinker',
 ]
 
 def get_legacy_defines(sketch_name, bld):
@@ -620,7 +621,7 @@ This option is only supported on macOS versions of clang.
     g.add_option('--ubsan-abort',
         action='store_true',
         help='''Build using the gcc undefined behaviour sanitizer and abort on error''')
-    
+
 def build(bld):
     bld.add_pre_fun(_process_build_command)
     bld.add_pre_fun(_select_programs_from_group)

@@ -182,6 +182,8 @@ class ExtractFeatures(object):
             ('AP_SBUSOUTPUT_ENABLED', 'AP_SBusOut::sbus_format_frame',),
             ('AP_KDECAN_ENABLED', r'AP_KDECAN::update\b',),
 
+            ('AP_ADELPHILINKER_ENABLED', r'AP_AdelphiLinker::init\b',),
+
             ('AP_RPM_ENABLED', 'AP_RPM::AP_RPM',),
             ('AP_RPM_{type}_ENABLED', r'AP_RPM_(?P<type>.*)::update',),
 

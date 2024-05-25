@@ -34,6 +34,8 @@
 #endif
 #include <AC_Fence/AC_Fence_config.h>
 
+#include <AC_AdelphiLinker/AdelphiLinker.h>
+
 class AP_OSD_Backend;
 class AP_MSP;
 
@@ -235,6 +237,10 @@ private:
     AP_OSD_Setting batt_bar{true, 1, 1};
     AP_OSD_Setting arming{true, 1, 1};
 
+#ifdef ADELPHI_CUSTOM_PLANE
+    AP_OSD_Setting adelphi_status{true, 1, 1};
+#endif
+
 #if HAL_WITH_MSP_DISPLAYPORT
     // Per screen HD resolution options (currently supported only by DisplayPort)
     AP_Int8 txt_resolution;
@@ -275,6 +281,9 @@ private:
     void draw_vspeed(uint8_t x, uint8_t y);
 #if HAL_PLUSCODE_ENABLE
     void draw_pluscode(uint8_t x, uint8_t y);
+#endif
+#ifdef ADELPHI_CUSTOM_PLANE
+    void draw_adelphi_status(uint8_t x, uint8_t y);
 #endif
     //helper functions
     void draw_speed(uint8_t x, uint8_t y, float angle_rad, float magnitude);

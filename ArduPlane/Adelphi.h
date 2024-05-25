@@ -5,17 +5,10 @@
 #include <AP_HAL/AP_HAL.h>
 #include <GCS_MAVLink/GCS.h>
 #include <AP_GPS/AP_GPS.h>
+#include <AC_AdelphiLinker/AdelphiLinker.h>
 
 #define ADELPHI_LOG_FILE_NAME "Adelphi"
 #define ADELPHI_LOG_FILE_EXT ".csv"
-
-enum class STATUS : uint32_t
-{
-  UNINITIALIZED = 0,
-  ATTACHED = 1,
-  DEPLOYED = 2,
-  LANDED = 3,
-};
 
 constexpr float RAD_TO_DEGf = 180.0f / M_PI;
 

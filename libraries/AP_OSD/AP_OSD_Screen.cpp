@@ -48,10 +48,6 @@
 #include <AP_WindVane/AP_WindVane.h>
 #endif
 
-if APM_BUILD_TYPE(APM_BUILD_ArduPlane)
-#include <AC_Adelphi/AdelphiLinker.h>
-#endif
-
 #include <AP_Filesystem/AP_Filesystem.h>
 
 #include <ctype.h>
@@ -2211,8 +2207,8 @@ void AP_OSD_Screen::draw_adelphi_status(uint8_t x, uint8_t y)
     if (!adelphi) {
         return;
     }
-    STATUS status = adelphi->get_status();
-    backend->write(x, y, false, "%c", adelphi->status_to_string(status));
+    //STATUS status = adelphi->get_status();
+    backend->write(x, y, false, "%s", "Hello!");
 }
 #endif
 /*
