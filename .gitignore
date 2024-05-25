@@ -166,3 +166,7 @@ ENV/
 env.bak/
 venv.bak/
 autotest_result_*_junit.xml
+
+# Ignore generated files
+Adelphi.csv
+mav_*_*.parm
