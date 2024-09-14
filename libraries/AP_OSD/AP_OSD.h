@@ -246,6 +246,7 @@ private:
 
 #ifdef ADELPHI_CUSTOM_PLANE
     AP_OSD_Setting adelphi_status{true, 1, 1};
+    AP_OSD_Setting zload{true, 1, 1};
 #endif
 
 #if HAL_WITH_MSP_DISPLAYPORT
@@ -291,6 +292,7 @@ private:
 #endif
 #ifdef ADELPHI_CUSTOM_PLANE
     void draw_adelphi_status(uint8_t x, uint8_t y);
+    void draw_zload(uint8_t x, uint8_t y);
 #endif
     // helper functions
     void draw_speed(uint8_t x, uint8_t y, float angle_rad, float magnitude);

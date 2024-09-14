@@ -44,6 +44,50 @@ void Adelphi::init()
   {
     AP_HAL::panic("Failed to start Adelphi IO thread");
   }
+
+  // Inicializar conexão com o ESP32
+  bool found_esp32 = false;
+
+  static const uint8_t addresses[] = {0x69};
+
+  FOREACH_I2C_EXTERNAL(bus)
+  {
+    for (uint8_t addr : addresses)
+    {
+      if (probe_bus(bus, addr))
+      {
+        found_esp32 = true;
+        goto exit_sensor_loop;
+      }
+    }
+  }
+  FOREACH_I2C_INTERNAL(bus)
+  {
+    for (uint8_t addr : addresses)
+    {
+      if (probe_bus(bus, addr))
+      {
+        found_esp32 = true;
+        goto exit_sensor_loop;
+      }
+    }
+  }
+
+exit_sensor_loop:
+
+  if (!found_esp32)
+  {
+
+    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "ESP32Planador[Adelphi]: not found");
+  }
+  else
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "ESP32Planador[Adelphi]: Found bus %u addr 0x%02x", esp32_device->bus_num(), esp32_device->get_bus_address());
+    // drop to 2 retries for runtime (better performance)
+    esp32_device->set_retries(2);
+    esp32_device->register_periodic_callback(20000,
+                                             FUNCTOR_BIND_MEMBER(&Adelphi::esp32_timer, void));
+  }
 }
 
 void Adelphi::io_timer()
@@ -130,6 +174,24 @@ void Adelphi::update()
     // Subtrai o tempo atual em milisegundos e divide por 1000 para obter o tempo em segundos
     // Subtrai 10800 para converter de UTC para BRT
     this->base_time = (AP::gps().time_week_ms() % 86400000 - AP_HAL::millis()) / 1000.0 - 10800.0;
+
+    this->status = STATUS::ATTACHED;
+  }
+
+  if (this->esp32_data.ardupilot_response == 0 && this->prepared && plane.get_mode() == plane.mode_stabilize.mode_number())
+  {
+    this->esp32_data.ardupilot_response = this->esp32_data.id;
+    this->should_write_to_esp32 = true;
+    plane.set_mode(plane.mode_auto, ModeReason::SCRIPTING);
+    this->status = STATUS::DEPLOYED
+  }
+
+  if (this->esp32_data.should_prepare && !this->prepared)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Iniciando alijamento...");
+    this->prepared = true;
+    // change mode to STABILIZE
+    plane.set_mode(plane.mode_stabilize, ModeReason::SCRIPTING);
   }
 
   const double now = this->base_time + (AP_HAL::millis() / 1000.0);
@@ -139,7 +201,6 @@ void Adelphi::update()
   const float alt = plane.relative_altitude - this->home_alt;
 
   // Euler angles in radians to degrees
-
   float roll = wrap_360(AP::ahrs().get_roll() * RAD_TO_DEGf);
   float pitch = wrap_360(AP::ahrs().get_pitch() * RAD_TO_DEGf);
   float yaw = wrap_360(AP::ahrs().get_yaw() * RAD_TO_DEGf);
@@ -150,6 +211,27 @@ void Adelphi::update()
   const float aileron = SRV_Channels::get_output_scaled(SRV_Channel::k_aileron);
   const float elevator = SRV_Channels::get_output_scaled(SRV_Channel::k_elevator);
   const float rudder = SRV_Channels::get_output_scaled(SRV_Channel::k_rudder);
+
+  // Aguardar armar para começar a gravar
+  if (!this->has_armed && plane.arming.is_armed())
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Iniciando...");
+    this->has_armed = true;
+  }
+
+  // Se desarmar, para de gravar
+  if (this->has_armed && !plane.arming.is_armed())
+  {
+    this->prepared = false;
+    this->has_armed = false;
+    return;
+  }
+
+  // Se não tiver armado, não grava
+  if (!this->has_armed)
+  {
+    return;
+  }
 
   char buf[128];
   // "Tempo\tXGPS\tYGPS\tZGPS\tELEV\tAIL\tRUD\tTHETA\tPHI\tPSI\tStatus\tAOA\tAOS\n";
@@ -192,7 +274,8 @@ int Adelphi::log_count()
   auto *d = AP::FS().opendir(".");
   if (d == nullptr)
   {
-    return 0;
+    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "[Adelphi] Failed to open home dir");
+    return -1;
   }
 
   uint32_t count = 0;
@@ -204,12 +287,13 @@ int Adelphi::log_count()
 
     uint32_t size = strlen(de->d_name);
 
-    if (size < sizeof(ADELPHI_LOG_FILE_NAME) + sizeof(ADELPHI_LOG_FILE_EXT) - 1)
+    if (size <= 4)
     {
       continue;
     }
 
-    if (strncmp(de->d_name, ADELPHI_LOG_FILE_NAME, sizeof(ADELPHI_LOG_FILE_NAME) - 1) == 0)
+    // Check if de->d_name starsWith ADELPHI_LOG_FILE_NAME
+    if (strncmp(de->d_name, ADELPHI_LOG_FILE_NAME, strlen(ADELPHI_LOG_FILE_NAME)) == 0)
     {
       count++;
     }
@@ -217,4 +301,61 @@ int Adelphi::log_count()
   AP::FS().closedir(d);
 
   return count;
+}
+
+void Adelphi::esp32_timer()
+{
+  if (should_write_to_esp32)
+  {
+    esp32_device->transfer((uint8_t *)(&esp32_data), sizeof(DataFromPlanador), nullptr, 0);
+    should_write_to_esp32 = false;
+  }
+  // read i2c buffer on 0x69
+  esp32_read();
+}
+
+bool Adelphi::esp32_read()
+{
+  if (esp32_device->read((uint8_t *)(&esp32_data), sizeof(DataFromPlanador)))
+  {
+    if (esp32_data.id == 0x69)
+    {
+      esp32_last_read_t = AP_HAL::millis();
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Adelphi::probe_bus(uint8_t bus, uint8_t address)
+{
+  esp32_device = hal.i2c_mgr->get_device(bus, address);
+  if (!esp32_device)
+  {
+    return false;
+  }
+
+  WITH_SEMAPHORE(esp32_device->get_semaphore());
+
+  esp32_device->read((uint8_t *)(&esp32_data), sizeof(DataFromPlanador));
+  // lots of retries during probe
+  esp32_device->set_retries(10);
+
+  return esp32_read();
+}
+
+void Adelphi::on_land()
+{
+  GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
+  this->status = STATUS::LANDED;
+}
+
+uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
+{
+  uint8_t checksum = 0;
+  for (size_t i = 0; i < len; i++)
+  {
+    checksum ^= buffer[i];
+  }
+  return checksum;
 }

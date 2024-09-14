@@ -888,21 +888,21 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     AP_SUBGROUPINFO(callsign, "CALLSIGN", 53, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
-    // @Param: CURRENT2_EN
-    // @DisplayName: CURRENT2_EN
-    // @Description: Displays 2nd battery current
-    // @Values: 0:Disabled,1:Enabled
+// @Param: CURRENT2_EN
+// @DisplayName: CURRENT2_EN
+// @Description: Displays 2nd battery current
+// @Values: 0:Disabled,1:Enabled
 
-    // @Param: CURRENT2_X
-    // @DisplayName: CURRENT2_X
-    // @Description: Horizontal position on screen
-    // @Range: 0 59
+// @Param: CURRENT2_X
+// @DisplayName: CURRENT2_X
+// @Description: Horizontal position on screen
+// @Range: 0 59
 
-    // @Param: CURRENT2_Y
-    // @DisplayName: CURRENT2_Y
-    // @Description: Vertical position on screen
-    // @Range: 0 21
-    AP_SUBGROUPINFO(current2, "CURRENT2", 54, AP_OSD_Screen, AP_OSD_Setting),
+// @Param: CURRENT2_Y
+// @DisplayName: CURRENT2_Y
+// @Description: Vertical position on screen
+// @Range: 0 21
+// AP_SUBGROUPINFO(current2, "CURRENT2", 54, AP_OSD_Screen, AP_OSD_Setting),
 
 #if AP_VIDEOTX_ENABLED
     // @Param: VTX_PWR_EN
@@ -972,75 +972,75 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @Range: 0 21
     AP_SUBGROUPINFO(restvolt, "RESTVOLT", 58, AP_OSD_Screen, AP_OSD_Setting),
 
-    // @Param: FENCE_EN
-    // @DisplayName: FENCE_EN
-    // @Description: Displays indication of fence enable and breach
-    // @Values: 0:Disabled,1:Enabled
+// @Param: FENCE_EN
+// @DisplayName: FENCE_EN
+// @Description: Displays indication of fence enable and breach
+// @Values: 0:Disabled,1:Enabled
 
-    // @Param: FENCE_X
-    // @DisplayName: FENCE_X
-    // @Description: Horizontal position on screen
-    // @Range: 0 59
+// @Param: FENCE_X
+// @DisplayName: FENCE_X
+// @Description: Horizontal position on screen
+// @Range: 0 59
 
-    // @Param: FENCE_Y
-    // @DisplayName: FENCE_Y
-    // @Description: Vertical position on screen
-    // @Range: 0 21
-    AP_SUBGROUPINFO(fence, "FENCE", 59, AP_OSD_Screen, AP_OSD_Setting),
+// @Param: FENCE_Y
+// @DisplayName: FENCE_Y
+// @Description: Vertical position on screen
+// @Range: 0 21
+// AP_SUBGROUPINFO(fence, "FENCE", 59, AP_OSD_Screen, AP_OSD_Setting),
 
-    // @Param: RNGF_EN
-    // @DisplayName: RNGF_EN
-    // @Description: Displays a rangefinder's distance in cm
-    // @Values: 0:Disabled,1:Enabled
+// @Param: RNGF_EN
+// @DisplayName: RNGF_EN
+// @Description: Displays a rangefinder's distance in cm
+// @Values: 0:Disabled,1:Enabled
 
-    // @Param: RNGF_X
-    // @DisplayName: RNGF_X
-    // @Description: Horizontal position on screen
-    // @Range: 0 59
+// @Param: RNGF_X
+// @DisplayName: RNGF_X
+// @Description: Horizontal position on screen
+// @Range: 0 59
 
-    // @Param: RNGF_Y
-    // @DisplayName: RNGF_Y
-    // @Description: Vertical position on screen
-    // @Range: 0 21
-    AP_SUBGROUPINFO(rngf, "RNGF", 60, AP_OSD_Screen, AP_OSD_Setting),
+// @Param: RNGF_Y
+// @DisplayName: RNGF_Y
+// @Description: Vertical position on screen
+// @Range: 0 21
+// AP_SUBGROUPINFO(rngf, "RNGF", 60, AP_OSD_Screen, AP_OSD_Setting),
 
-    // @Param: ACRVOLT_EN
-    // @DisplayName: ACRVOLT_EN
-    // @Description: Displays resting voltage for the average cell. WARNING: this can be inaccurate if the cell count is not detected or set properly. If the  the battery is far from fully charged the detected cell count might not be accurate if auto cell count detection is used (OSD_CELL_COUNT=0).
-    // @Values: 0:Disabled,1:Enabled
+// @Param: ACRVOLT_EN
+// @DisplayName: ACRVOLT_EN
+// @Description: Displays resting voltage for the average cell. WARNING: this can be inaccurate if the cell count is not detected or set properly. If the  the battery is far from fully charged the detected cell count might not be accurate if auto cell count detection is used (OSD_CELL_COUNT=0).
+// @Values: 0:Disabled,1:Enabled
 
-    // @Param: ACRVOLT_X
-    // @DisplayName: ACRVOLT_X
-    // @Description: Horizontal position on screen
-    // @Range: 0 59
+// @Param: ACRVOLT_X
+// @DisplayName: ACRVOLT_X
+// @Description: Horizontal position on screen
+// @Range: 0 59
 
-    // @Param: ACRVOLT_Y
-    // @DisplayName: ACRVOLT_Y
-    // @Description: Vertical position on screen
-    // @Range: 0 21
-    AP_SUBGROUPINFO(avgcellrestvolt, "ACRVOLT", 61, AP_OSD_Screen, AP_OSD_Setting),
+// @Param: ACRVOLT_Y
+// @DisplayName: ACRVOLT_Y
+// @Description: Vertical position on screen
+// @Range: 0 21
+// AP_SUBGROUPINFO(avgcellrestvolt, "ACRVOLT", 61, AP_OSD_Screen, AP_OSD_Setting),
 
 #if AP_RPM_ENABLED
-    // @Param: RPM_EN
-    // @DisplayName: RPM_EN
-    // @Description: Displays main rotor revs/min
-    // @Values: 0:Disabled,1:Enabled
+// @Param: RPM_EN
+// @DisplayName: RPM_EN
+// @Description: Displays main rotor revs/min
+// @Values: 0:Disabled,1:Enabled
 
-    // @Param: RPM_X
-    // @DisplayName: RPM_X
-    // @Description: Horizontal position on screen
-    // @Range: 0 29
+// @Param: RPM_X
+// @DisplayName: RPM_X
+// @Description: Horizontal position on screen
+// @Range: 0 29
 
-    // @Param: RPM_Y
-    // @DisplayName: RPM_Y
-    // @Description: Vertical position on screen
-    // @Range: 0 15
-    AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
+// @Param: RPM_Y
+// @DisplayName: RPM_Y
+// @Description: Vertical position on screen
+// @Range: 0 15
+// AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
 #ifdef ADELPHI_CUSTOM_PLANE
-    // @Param: ADELPHI_STATUS
-    // @DisplayName: ADELPHI_STATUS
+    // @Param: ADELPHI_EN
+    // @DisplayName: ADELPHI_EN
     // @Description: Displays Adelphi status
     // @Values: 0:Disabled,1:Enabled
 
@@ -1053,8 +1053,23 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @DisplayName: ADELPHI_Y
     // @Description: Vertical position on screen
     // @Range: 0 21
-
     AP_SUBGROUPINFO(adelphi_status, "ADELPHI", 63, AP_OSD_Screen, AP_OSD_Setting),
+
+    // @Param: ZLOAD_EN
+    // @DisplayName: ZLOAD_EN
+    // @Description: Displays Adelphi Z acceleration
+    // @Values: 0:Disabled,1:Enabled
+
+    // @Param: ZLOAD_X
+    // @DisplayName: ZLOAD_X
+    // @Description: Horizontal position on screen
+    // @Range: 0 59
+
+    // @Param: ZLOAD_Y
+    // @DisplayName: ZLOAD_Y
+    // @Description: Vertical position on screen
+    // @Range: 0 21
+    AP_SUBGROUPINFO(zload, "ZLOAD", 62, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
     AP_GROUPEND};
@@ -2315,11 +2330,11 @@ void AP_OSD_Screen::draw_clk(uint8_t x, uint8_t y)
     uint16_t ms;
     if (!rtc.get_local_time(hour, min, sec, ms))
     {
-        backend->write(x, y, false, "%c--:--", SYMBOL(SYM_CLK));
+        backend->write(x, y, false, "%c--:--:--", SYMBOL(SYM_CLK));
     }
     else
     {
-        backend->write(x, y, false, "%c%02u:%02u", SYMBOL(SYM_CLK), hour, min);
+        backend->write(x, y, false, "%c%02u:%02u:%02u", SYMBOL(SYM_CLK), hour, min, sec);
     }
 }
 #endif
@@ -2349,6 +2364,16 @@ void AP_OSD_Screen::draw_adelphi_status(uint8_t x, uint8_t y)
     //  STATUS status = adelphi->get_status();
     backend->write(x, y, false, "%s", "ADELPHI!");
 }
+
+void AP_OSD_Screen::draw_zload(uint8_t x, uint8_t y)
+{
+    // AP::ins().get_accel();
+    //  EF = Earth Frame
+    Vector3f accel = AP::ahrs().get_accel_ef();
+    float z_factor = accel.z / 9.81f;
+    backend->write(x, y, false, "G%1.1f", z_factor);
+}
+
 #endif
 /*
   support callsign display from a file called callsign.txt
@@ -2550,6 +2575,7 @@ void AP_OSD_Screen::draw(void)
 
 #ifdef ADELPHI_CUSTOM_PLANE
     DRAW_SETTING(adelphi_status);
+    DRAW_SETTING(zload);
 #endif
 }
 #endif
