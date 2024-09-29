@@ -182,8 +182,9 @@ void Adelphi::update()
   {
     this->esp32_data.ardupilot_response = this->esp32_data.id;
     this->should_write_to_esp32 = true;
+    // change mode to AUTO
     plane.set_mode(plane.mode_auto, ModeReason::SCRIPTING);
-    this->status = STATUS::DEPLOYED
+    this->status = STATUS::DEPLOYED;
   }
 
   if (this->esp32_data.should_prepare && !this->prepared)
@@ -281,6 +282,7 @@ int Adelphi::log_count()
   uint32_t count = 0;
 
   EXPECT_DELAY_MS(2000);
+
   for (auto de = AP::FS().readdir(d); de; de = AP::FS().readdir(d))
   {
     EXPECT_DELAY_MS(100);
@@ -298,6 +300,7 @@ int Adelphi::log_count()
       count++;
     }
   }
+
   AP::FS().closedir(d);
 
   return count;
