@@ -20,8 +20,15 @@ struct DataFromPlanador
   uint8_t status;
   uint8_t ardupilot_response;
   uint8_t data[24] = {0};
-  uint32_t checksum;
+
+  // Remove this later - ADELPHI_REMOVE
+  uint32_t channel_aileron;
+  uint32_t channel_rudder;
+  uint32_t channel_elevator;
+  uint8_t checksum;
 };
+
+static_assert(sizeof(DataFromPlanador) == 44, "DataToPlanador size is not 128 bytes");
 
 class Adelphi
 {
@@ -70,6 +77,9 @@ public:
   bool probe_bus(uint8_t bus, uint8_t address);
   void esp32_timer();
   bool esp32_read();
+
+  // rc out
+  void rcout_esp32_timer();
 
   // Hooks
   void on_land();

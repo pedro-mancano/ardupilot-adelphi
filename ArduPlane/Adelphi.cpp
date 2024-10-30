@@ -310,6 +310,8 @@ void Adelphi::esp32_timer()
 {
   if (should_write_to_esp32)
   {
+    uint8_t checksum = calcChecksum((uint8_t *)(&esp32_data), sizeof(DataFromPlanador));
+    esp32_data.checksum = checksum;
     esp32_device->transfer((uint8_t *)(&esp32_data), sizeof(DataFromPlanador), nullptr, 0);
     should_write_to_esp32 = false;
   }
@@ -361,4 +363,16 @@ uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
     checksum ^= buffer[i];
   }
   return checksum;
+}
+
+// Remove this later - ADELPHI_REMOVE
+void Adelphi::rcout_esp32_timer()
+{
+  const float aileron = SRV_Channels::get_output_scaled(SRV_Channel::k_aileron);
+  const float elevator = SRV_Channels::get_output_scaled(SRV_Channel::k_elevator);
+  const float rudder = SRV_Channels::get_output_scaled(SRV_Channel::k_rudder);
+  esp32_data.channel_aileron = aileron;
+  esp32_data.channel_elevator = elevator;
+  esp32_data.channel_rudder = rudder;
+  should_write_to_esp32 = true;
 }
