@@ -206,7 +206,7 @@ void Adelphi::update()
 
         const Location loc = AP::gps().location();
 
-        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, AP::ahrs().get_yaw(), 1, 0.03, 5, 5, 5000);
+        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, AP::ahrs().get_yaw(), 0.5, 0.05, 5, 5, 5000);
 
         if (!points.empty())
         {
@@ -276,9 +276,16 @@ void Adelphi::update()
   const float aoa = AP::ahrs().getAOA();
   const float aos = AP::ahrs().getSSA();
 
-  const float aileron = SRV_Channels::get_output_scaled(SRV_Channel::k_aileron) / 30 - 50;
-  const float elevator = SRV_Channels::get_output_scaled(SRV_Channel::k_elevator) / 30 - 50;
-  const float rudder = SRV_Channels::get_output_scaled(SRV_Channel::k_rudder) / 30 - 50;
+  uint16_t aileron_pwm = 0;
+  SRV_Channels::get_output_pwm(SRV_Channel::k_aileron, aileron_pwm);
+  uint16_t elevator_pwm = 0;
+  SRV_Channels::get_output_pwm(SRV_Channel::k_elevator, elevator_pwm);
+  uint16_t rudder_pwm = 0;
+  SRV_Channels::get_output_pwm(SRV_Channel::k_rudder, rudder_pwm);
+
+  const float aileron = ((float)aileron_pwm) * 0.06f - 90.0f;
+  const float elevator = ((float)elevator_pwm) * 0.0635575823338f - 91.2121469838f;
+  const float rudder = ((float)rudder_pwm) * -0.0448554091f + 68.6076596501f;
 
   // Aguardar armar para começar a gravar
   if (!this->has_armed && plane.arming.is_armed())
