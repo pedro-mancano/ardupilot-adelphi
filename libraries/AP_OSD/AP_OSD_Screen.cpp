@@ -2362,7 +2362,21 @@ void AP_OSD_Screen::draw_adelphi_status(uint8_t x, uint8_t y)
 {
     // AdelphiLinker &adelphi = AP::adelphi();
     //  STATUS status = adelphi->get_status();
-    backend->write(x, y, false, "%s", "ADELPHI!");
+    switch (AP::adelphi().get_status())
+    {
+    case STATUS::ATTACHED:
+        backend->write(x, y, false, "%s", "ATTACHED");
+        break;
+    case STATUS::DEPLOYED:
+        backend->write(x, y, false, "%s", "DEPLOYED");
+        break;
+    case STATUS::LANDED:
+        backend->write(x, y, false, "%s", "LANDED");
+        break;
+    case STATUS::UNINITIALIZED:
+        backend->write(x, y, false, "%s", "UNKNOWN");
+        break;
+    }
 }
 
 void AP_OSD_Screen::draw_zload(uint8_t x, uint8_t y)
@@ -2430,6 +2444,12 @@ void AP_OSD_Screen::draw_vtx_power(uint8_t x, uint8_t y)
 #if AP_TERRAIN_AVAILABLE
 void AP_OSD_Screen::draw_hgt_abvterr(uint8_t x, uint8_t y)
 {
+    //
+    auto gps = AP::gps().location().alt / 100;
+    backend->write(x, y, false, "%4d%c%c", (int)u_scale(ALTITUDE, gps), u_icon(ALTITUDE), SYMBOL(SYM_TERALT));
+
+    return;
+
     AP_Terrain *terrain = AP::terrain();
 
     float terrain_altitude;

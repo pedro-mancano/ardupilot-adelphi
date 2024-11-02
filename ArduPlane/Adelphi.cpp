@@ -2,7 +2,9 @@
 #include "Plane.h"
 
 // Construtor
-Adelphi::Adelphi() {}
+Adelphi::Adelphi()
+{
+}
 
 // Destrutor
 Adelphi::~Adelphi()
@@ -175,22 +177,87 @@ void Adelphi::update()
     // Subtrai 10800 para converter de UTC para BRT
     this->base_time = (AP::gps().time_week_ms() % 86400000 - AP_HAL::millis()) / 1000.0 - 10800.0;
 
-    this->status = STATUS::ATTACHED;
+    AP::adelphi().set_status(STATUS::ATTACHED);
   }
 
-  if (this->esp32_data.ardupilot_response == 0 && this->prepared && plane.get_mode() == plane.mode_stabilize.mode_number())
+  // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] In release condition: %lu, should alert plane of release: %d, ardupilot release confirmation: %d, id: %d", this->esp32_data.in_release_condition, this->esp32_data.should_alert_plane_of_release, this->esp32_data.ardupilot_release_confirmation, this->esp32_data.id);
+
+  if (this->prepared && plane.get_mode() == plane.mode_stabilize.mode_number() && this->esp32_data.ardupilot_release_confirmation == 0 && AP_HAL::millis() - this->prepared_time > 2000)
   {
-    this->esp32_data.ardupilot_response = this->esp32_data.id;
-    this->should_write_to_esp32 = true;
-    // change mode to AUTO
-    plane.set_mode(plane.mode_auto, ModeReason::SCRIPTING);
-    this->status = STATUS::DEPLOYED;
+    if (this->esp32_data.in_release_condition == 1)
+    {
+      auto mission = AP::mission();
+
+      AP_Mission::Mission_Command home_cmd;
+      AP_Mission::Mission_Command land;
+      AP_Mission::Mission_Command flare;
+
+      if (mission->num_commands() > 0)
+      {
+        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao");
+        mission->read_cmd_from_storage(0, home_cmd);
+        mission->read_cmd_from_storage(mission->num_commands() - 1, land);
+
+        Vector2D land_point = {((float)land.content.location.lat) / 1.0e7f, ((float)land.content.location.lng) / 1.0e7f};
+
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Latitude: %f, Longitude: %f", land_point.x, land_point.y);
+
+        Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
+
+        const Location loc = AP::gps().location();
+
+        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, AP::ahrs().get_yaw(), 1, 0.03, 5, 5, 5000);
+
+        if (!points.empty())
+        {
+          GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Calculando flare");
+          auto flare_point_xy = findApproachPoint(land_point_xy, points, 51);
+
+          auto flare_point = cartesianToLatLon(flare_point_xy.x, flare_point_xy.y, land_point.x, land_point.y);
+
+          mission->clear();
+
+          mission->add_cmd(home_cmd);
+          flare.id = MAV_CMD_NAV_WAYPOINT;
+          flare.p1 = 0;
+          flare.content.location = Location{
+              (int)(flare_point.x * 1e7),
+              (int)(flare_point.y * 1e7),
+              1500,
+              Location::AltFrame::ABSOLUTE};
+          mission->add_cmd(flare);
+          mission->add_cmd(land);
+
+          mission->set_current_cmd(0);
+        }
+        else
+        {
+          // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Pontos vazios missao");
+        }
+      }
+
+      this->esp32_data.ardupilot_release_confirmation = this->esp32_data.id;
+      this->should_write_to_esp32 = true;
+      // change mode to AUTO
+      plane.set_mode(plane.mode_auto, ModeReason::SCRIPTING);
+      AP::adelphi().set_status(STATUS::DEPLOYED);
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Alijamento liberado");
+    }
+    else
+    {
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Alijamento abortado");
+      this->prepared = false;
+      plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
+    }
   }
 
-  if (this->esp32_data.should_prepare && !this->prepared)
+  // Consderar cancelamento o cancelmaneto para mudar o status se preciso.
+
+  if (this->esp32_data.in_release_condition == 1 && !this->prepared)
   {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Iniciando alijamento...");
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Preparando alijamento...");
     this->prepared = true;
+    this->prepared_time = AP_HAL::millis();
     // change mode to STABILIZE
     plane.set_mode(plane.mode_stabilize, ModeReason::SCRIPTING);
   }
@@ -209,9 +276,9 @@ void Adelphi::update()
   const float aoa = AP::ahrs().getAOA();
   const float aos = AP::ahrs().getSSA();
 
-  const float aileron = SRV_Channels::get_output_scaled(SRV_Channel::k_aileron);
-  const float elevator = SRV_Channels::get_output_scaled(SRV_Channel::k_elevator);
-  const float rudder = SRV_Channels::get_output_scaled(SRV_Channel::k_rudder);
+  const float aileron = SRV_Channels::get_output_scaled(SRV_Channel::k_aileron) / 30 - 50;
+  const float elevator = SRV_Channels::get_output_scaled(SRV_Channel::k_elevator) / 30 - 50;
+  const float rudder = SRV_Channels::get_output_scaled(SRV_Channel::k_rudder) / 30 - 50;
 
   // Aguardar armar para começar a gravar
   if (!this->has_armed && plane.arming.is_armed())
@@ -237,19 +304,19 @@ void Adelphi::update()
   char buf[128];
   // "Tempo\tXGPS\tYGPS\tZGPS\tELEV\tAIL\tRUD\tTHETA\tPHI\tPSI\tStatus\tAOA\tAOS\n";
   hal.util->snprintf((char *)buf, 128, "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d\t%f\t%f\n",
-                     now,         // Tempo
-                     dist3d.x,    // XGPS
-                     dist3d.y,    // YGPS
-                     alt,         // ZGPS
-                     elevator,    // ELEV
-                     aileron,     // AIL
-                     rudder,      // RUD
-                     pitch,       // THETA
-                     roll,        // PHI
-                     yaw,         // PSI
-                     (int)status, // Status
-                     aoa,         // AOA
-                     aos          // AOS
+                     now,                             // Tempo
+                     dist3d.x,                        // XGPS
+                     dist3d.y,                        // YGPS
+                     alt,                             // ZGPS
+                     elevator,                        // ELEV
+                     aileron,                         // AIL
+                     rudder,                          // RUD
+                     pitch,                           // THETA
+                     roll,                            // PHI
+                     yaw,                             // PSI
+                     (int)AP::adelphi().get_status(), // Status
+                     aoa,                             // AOA
+                     aos                              // AOS
   );
 
   this->writeBlock((uint8_t *)buf, strlen(buf));
@@ -310,7 +377,7 @@ void Adelphi::esp32_timer()
 {
   if (should_write_to_esp32)
   {
-    uint8_t checksum = calcChecksum((uint8_t *)(&esp32_data), sizeof(DataFromPlanador));
+    uint8_t checksum = calcChecksum((uint8_t *)(&esp32_data), sizeof(DataFromPlanador) - sizeof(uint32_t));
     esp32_data.checksum = checksum;
     esp32_device->transfer((uint8_t *)(&esp32_data), sizeof(DataFromPlanador), nullptr, 0);
     should_write_to_esp32 = false;
@@ -321,10 +388,17 @@ void Adelphi::esp32_timer()
 
 bool Adelphi::esp32_read()
 {
-  if (esp32_device->read((uint8_t *)(&esp32_data), sizeof(DataFromPlanador)))
+
+  if (esp32_device->read((uint8_t *)(&esp32_data_temp), sizeof(DataFromPlanador)))
   {
-    if (esp32_data.id == 0x69)
+    // if (esp32_data_temp.checksum != calcChecksum((uint8_t *)(&esp32_data_temp), sizeof(DataFromPlanador) - sizeof(uint32_t)))
+    //{
+    //   GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "ESP32Planador[Adelphi]: Checksum error, expected %d got %d", calcChecksum((uint8_t *)(&esp32_data_temp), sizeof(DataFromPlanador) - sizeof(uint32_t)), esp32_data_temp.checksum);
+    //   return false;
+    // }
+    if (esp32_data_temp.id == 0x69)
     {
+      esp32_data = esp32_data_temp;
       esp32_last_read_t = AP_HAL::millis();
       return true;
     }
@@ -346,13 +420,24 @@ bool Adelphi::probe_bus(uint8_t bus, uint8_t address)
   // lots of retries during probe
   esp32_device->set_retries(10);
 
-  return esp32_read();
+  bool found = false;
+  for (int i = 0; i < 10; i++)
+  {
+    bool success = esp32_read();
+    if (success)
+    {
+      found = true;
+      break;
+    }
+  }
+
+  return found;
 }
 
 void Adelphi::on_land()
 {
   GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
-  this->status = STATUS::LANDED;
+  AP::adelphi().set_status(STATUS::LANDED);
 }
 
 uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
@@ -365,14 +450,113 @@ uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
   return checksum;
 }
 
-// Remove this later - ADELPHI_REMOVE
-void Adelphi::rcout_esp32_timer()
+// Convert latitude/longitude to Cartesian coordinates relative to a reference point
+Vector2D latLonToCartesian(float lat, float lon, float lat_ref, float lon_ref)
 {
-  const float aileron = SRV_Channels::get_output_scaled(SRV_Channel::k_aileron);
-  const float elevator = SRV_Channels::get_output_scaled(SRV_Channel::k_elevator);
-  const float rudder = SRV_Channels::get_output_scaled(SRV_Channel::k_rudder);
-  esp32_data.channel_aileron = aileron;
-  esp32_data.channel_elevator = elevator;
-  esp32_data.channel_rudder = rudder;
-  should_write_to_esp32 = true;
+  // Convert degrees to radians
+  float lat_rad = lat * M_PI / 180.0;
+  float lon_rad = lon * M_PI / 180.0;
+  float lat_ref_rad = lat_ref * M_PI / 180.0;
+  float lon_ref_rad = lon_ref * M_PI / 180.0;
+
+  // Calculate x and y in meters
+  float x = EARTH_RADIUS * (lon_rad - lon_ref_rad) * cosf((float)((lat_rad + lat_ref_rad) / 2.0f));
+  float y = EARTH_RADIUS * (lat_rad - lat_ref_rad);
+
+  return {x, y};
+}
+
+// Convert Cartesian coordinates to latitude/longitude relative to a reference point
+Vector2D cartesianToLatLon(float x, float y, float lat_ref, float lon_ref)
+{
+  float lat_ref_rad = lat_ref * M_PI / 180.0;
+  float lon_ref_rad = lon_ref * M_PI / 180.0;
+
+  // Calculate latitude and longitude in radians
+  float lat_rad = lat_ref_rad + (y / EARTH_RADIUS);
+  float lon_rad = lon_ref_rad + (x / (EARTH_RADIUS * cosf((float)(lat_rad + lat_ref_rad) / 2.0f)));
+
+  // Convert radians back to degrees
+  float lat = lat_rad * 180.0 / M_PI;
+  float lon = lon_rad * 180.0 / M_PI;
+
+  return {lat, lon};
+}
+
+// Convert heading (in degrees) to a 2D directional vector
+Vector2D headingToVector(float heading)
+{
+  float heading_rad = heading * M_PI / 180.0;
+  float x = sinf(heading_rad);
+  float y = cosf(heading_rad);
+  return {x, y};
+}
+
+// Calculate path points towards the target point
+std::vector<Vector2D> calculate(float target_lat, float target_lon, float current_lat, float current_lon, float initial_heading, float speed, float steer_factor, float max_bank, float max_dist, int max_iterations)
+{
+  max_bank = max_bank * M_PI / 180.0;
+
+  // Convert target and current latitude/longitude to Cartesian coordinates
+  Vector2D target_point = latLonToCartesian(target_lat, target_lon, target_lat, target_lon);
+  Vector2D current_point = latLonToCartesian(current_lat, current_lon, target_lat, target_lon);
+
+  // Calculate initial forward vector based on heading
+  Vector2D forward_vector = headingToVector(initial_heading).normalized();
+
+  std::vector<Vector2D> points;
+  points.push_back(current_point);
+
+  int walk_towards_target_iter = 0;
+  bool converged = true;
+
+  while ((target_point - current_point).magnitude() > max_dist)
+  {
+    walk_towards_target_iter++;
+
+    Vector2D desired_direction = (target_point - current_point).normalized();
+    Vector2D steer = desired_direction - forward_vector;
+    forward_vector = (forward_vector + steer * steer_factor).normalized();
+
+    current_point = current_point + forward_vector * speed;
+    points.push_back(current_point);
+
+    if (walk_towards_target_iter > max_iterations)
+    {
+      converged = false;
+      break;
+    }
+    else
+    {
+      converged = true;
+    }
+  }
+
+  if (converged)
+  {
+    return points;
+  }
+  else
+  {
+    points.clear();
+    return points;
+  }
+}
+
+Vector2D findApproachPoint(const Vector2D &target_point, const std::vector<Vector2D> &points, float approach_distance_from_target)
+{
+  Vector2D approach_point = target_point;
+
+  for (const auto &point : points)
+  {
+    float dist_to_target_new = (point - target_point).magnitude();
+    float dist_to_target_cur = (approach_point - target_point).magnitude();
+
+    if (dist_to_target_new < approach_distance_from_target && dist_to_target_new > dist_to_target_cur)
+    {
+      approach_point = point;
+    }
+  }
+
+  return approach_point;
 }
