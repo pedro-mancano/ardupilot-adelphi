@@ -322,7 +322,6 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @Range: 0 21
     AP_SUBGROUPINFO(wind, "WIND", 18, AP_OSD_Screen, AP_OSD_Setting),
 
-
     // @Param: ASPEED_EN
     // @DisplayName: ASPEED_EN
     // @Description: Displays airspeed value being used by TECS (fused value)
@@ -678,7 +677,6 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     // @Range: 0 21
     AP_SUBGROUPINFO(bat2used, "BAT2USED", 40, AP_OSD_Screen, AP_OSD_Setting),
 
-
     // @Param: ASPD2_EN
     // @DisplayName: ASPD2_EN
     // @Description: Displays airspeed reported directly from secondary airspeed sensor
@@ -1028,25 +1026,57 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info[] = {
     AP_SUBGROUPINFO(avgcellrestvolt, "ACRVOLT", 61, AP_OSD_Screen, AP_OSD_Setting),
 
 #if AP_RPM_ENABLED
-	// @Param: RPM_EN
-	// @DisplayName: RPM_EN
-	// @Description: Displays main rotor revs/min
-	// @Values: 0:Disabled,1:Enabled
+    // @Param: RPM_EN
+    // @DisplayName: RPM_EN
+    // @Description: Displays main rotor revs/min
+    // @Values: 0:Disabled,1:Enabled
 
-	// @Param: RPM_X
-	// @DisplayName: RPM_X
-	// @Description: Horizontal position on screen
-	// @Range: 0 29
+    // @Param: RPM_X
+    // @DisplayName: RPM_X
+    // @Description: Horizontal position on screen
+    // @Range: 0 29
 
-	// @Param: RPM_Y
-	// @DisplayName: RPM_Y
-	// @Description: Vertical position on screen
-	// @Range: 0 15
-	AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
+    // @Param: RPM_Y
+    // @DisplayName: RPM_Y
+    // @Description: Vertical position on screen
+    // @Range: 0 15
+    // AP_SUBGROUPINFO(rrpm, "RPM", 62, AP_OSD_Screen, AP_OSD_Setting),
+#endif
+#ifdef ADELPHI_CUSTOM_PLANE
+    // @Param: ADELPHI_EN
+    // @DisplayName: ADELPHI_EN
+    // @Description: Displays Adelphi status
+    // @Values: 0:Disabled,1:Enabled
+
+    // @Param: ADELPHI_X
+    // @DisplayName: ADELPHI_X
+    // @Description: Horizontal position on screen
+    // @Range: 0 59
+
+    // @Param: ADELPHI_Y
+    // @DisplayName: ADELPHI_Y
+    // @Description: Vertical position on screen
+    // @Range: 0 21
+    AP_SUBGROUPINFO(adelphi_status, "ADELPHI", 63, AP_OSD_Screen, AP_OSD_Setting),
+
+    // @Param: ZLOAD_EN
+    // @DisplayName: ZLOAD_EN
+    // @Description: Displays Adelphi Z acceleration
+    // @Values: 0:Disabled,1:Enabled
+
+    // @Param: ZLOAD_X
+    // @DisplayName: ZLOAD_X
+    // @Description: Horizontal position on screen
+    // @Range: 0 59
+
+    // @Param: ZLOAD_Y
+    // @DisplayName: ZLOAD_Y
+    // @Description: Vertical position on screen
+    // @Range: 0 21
+    AP_SUBGROUPINFO(zload, "ZLOAD", 62, AP_OSD_Screen, AP_OSD_Setting),
 #endif
 
-    AP_GROUPEND
-};
+    AP_GROUPEND};
 
 const AP_Param::GroupInfo AP_OSD_Screen::var_info2[] = {
     // duplicate of OSDn_ENABLE to ensure params are hidden when not enabled
@@ -2458,6 +2488,39 @@ void AP_OSD_Screen::draw_pluscode(uint8_t x, uint8_t y)
 }
 #endif
 
+#ifdef ADELPHI_CUSTOM_PLANE
+void AP_OSD_Screen::draw_adelphi_status(uint8_t x, uint8_t y)
+{
+    // AdelphiLinker &adelphi = AP::adelphi();
+    //  STATUS status = adelphi->get_status();
+    switch (AP::adelphi().get_status())
+    {
+    case STATUS::ATTACHED:
+        backend->write(x, y, false, "%s", "ATTACHED");
+        break;
+    case STATUS::DEPLOYED:
+        backend->write(x, y, false, "%s", "DEPLOYED");
+        break;
+    case STATUS::LANDED:
+        backend->write(x, y, false, "%s", "LANDED");
+        break;
+    case STATUS::UNINITIALIZED:
+        backend->write(x, y, false, "%s", "UNKNOWN");
+        break;
+    }
+}
+
+void AP_OSD_Screen::draw_zload(uint8_t x, uint8_t y)
+{
+    // AP::ins().get_accel();
+    //  EF = Earth Frame
+    Vector3f accel = AP::ahrs().get_accel_ef();
+    float z_factor = accel.z / 9.81f;
+    backend->write(x, y, false, "G%1.1f", z_factor);
+}
+
+#endif
+
 /*
   support callsign display from a file called callsign.txt
  */
@@ -2648,6 +2711,11 @@ void AP_OSD_Screen::draw(void)
     DRAW_SETTING(rc_snr);
     DRAW_SETTING(rc_active_antenna);
     DRAW_SETTING(rc_lq);
+#endif
+
+#ifdef ADELPHI_CUSTOM_PLANE
+    DRAW_SETTING(adelphi_status);
+    DRAW_SETTING(zload);
 #endif
 }
 #endif

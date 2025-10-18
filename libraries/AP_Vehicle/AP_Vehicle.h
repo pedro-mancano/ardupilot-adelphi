@@ -81,6 +81,7 @@
 #endif
 
 #include <AP_IBus_Telem/AP_IBus_Telem.h>
+#include <AC_AdelphiLinker/AdelphiLinker.h>
 
 class AP_DDS_Client;
 
@@ -395,6 +396,10 @@ protected:
 #if AP_AHRS_ENABLED
     // Inertial Navigation EKF
     AP_AHRS ahrs;
+#endif
+
+#ifdef ADELPHI_CUSTOM_PLANE
+    AdelphiLinker adelphi_linker;
 #endif
 
 #if HAL_HOTT_TELEM_ENABLED

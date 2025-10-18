@@ -175,6 +175,9 @@ void Plane::init_ardupilot()
     g2.ice_control.init();
 #endif
 
+    adelphi_linker.init();
+
+    adelphi.init();
 }
 
 #if AP_FENCE_ENABLED

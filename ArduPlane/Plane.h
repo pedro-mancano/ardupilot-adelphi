@@ -121,6 +121,10 @@
 #include "avoidance_adsb.h"
 #endif
 #include "AP_Arming.h"
+
+#include "Adelphi.h"
+#include <AC_AdelphiLinker/AdelphiLinker.h>
+
 #include "pullup.h"
 #include "systemid.h"
 
@@ -174,6 +178,8 @@ public:
     friend class ModeThermal;
     friend class ModeLoiterAltQLand;
 
+    friend class Adelphi;
+
 #if AP_EXTERNAL_CONTROL_ENABLED
     friend class AP_ExternalControl_Plane;
 #endif
@@ -187,6 +193,8 @@ public:
     Plane(void);
 
 private:
+    // Adelphi Controller
+    Adelphi adelphi;
 
     // key aircraft parameters passed to multiple libraries
     AP_FixedWing aparm;

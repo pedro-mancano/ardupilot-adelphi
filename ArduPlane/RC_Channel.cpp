@@ -481,6 +481,21 @@ bool RC_Channel_Plane::do_aux_function(const AUX_FUNC ch_option, const AuxSwitch
         break;
 #endif
 
+    case AUX_FUNC::ADELPHI_START_LOGGING:
+        switch (ch_flag)
+        {
+        case AuxSwitchPos::HIGH:
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Adelphi: Iniciando log...");
+            break;
+        case AuxSwitchPos::MIDDLE:
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Adelphi: Log pausado...");
+            break;
+        case AuxSwitchPos::LOW:
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Adelphi: Log finalizado...");
+            break;
+        }
+        break;
+
     default:
         return RC_Channel::do_aux_function(ch_option, ch_flag);
     }
