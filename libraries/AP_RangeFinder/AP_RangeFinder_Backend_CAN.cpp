@@ -13,10 +13,12 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AP_RangeFinder_config.h"
+
+#if AP_RANGEFINDER_BACKEND_CAN_ENABLED
+
 #include <AP_HAL/AP_HAL.h>
 #include "AP_RangeFinder_Backend_CAN.h"
-
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
 
 const AP_Param::GroupInfo AP_RangeFinder_Backend_CAN::var_info[] = {
 

@@ -37,21 +37,35 @@ void Vicon::maybe_send_heartbeat()
 {
     const uint32_t now = AP_HAL::millis();
 
-    if (now - last_heartbeat_ms < 100) {
+    if (now - last_heartbeat_ms < 500) {
         // we only provide a heartbeat every so often
         return;
     }
+
+    uint8_t msg_buf_index;
+    if (!get_free_msg_buf_index(msg_buf_index)) {
+        return;
+    }
+
     last_heartbeat_ms = now;
 
-    mavlink_message_t msg;
-    mavlink_msg_heartbeat_pack(system_id,
-                               component_id,
-                               &msg,
-                               MAV_TYPE_GCS,
-                               MAV_AUTOPILOT_INVALID,
-                               0,
-                               0,
-                               0);
+    const mavlink_heartbeat_t heartbeat{
+        custom_mode: 0,
+        type : MAV_TYPE_GCS,
+        autopilot : MAV_AUTOPILOT_INVALID,
+        base_mode: 0,
+        system_status: 0,
+        mavlink_version: 0,
+    };
+
+    mavlink_msg_heartbeat_encode_status(
+        system_id,
+        component_id,
+        &mav_status,
+        &msg_buf[msg_buf_index].obs_msg,
+        &heartbeat
+    );
+    msg_buf[msg_buf_index].time_send_us = AP_HAL::millis();
 }
 
 // get unused index in msg_buf
@@ -156,13 +170,13 @@ void Vicon::update_vicon_position_estimate(const Location &loc,
     uint8_t msg_buf_index;
     if (should_send(ViconTypeMask::VISION_POSITION_ESTIMATE) && get_free_msg_buf_index(msg_buf_index)) {
         const mavlink_vision_position_estimate_t vision_position_estimate{
-            now_us + time_offset_us,
-            float(pos_corrected.x),
-            float(pos_corrected.y),
-            float(pos_corrected.z),
-            roll,
-            pitch,
-            yaw
+        usec: now_us + time_offset_us,
+        x: float(pos_corrected.x),
+        y: float(pos_corrected.y),
+        z: float(pos_corrected.z),
+        roll: roll,
+        pitch: pitch,
+        yaw: yaw
         };
         mavlink_msg_vision_position_estimate_encode_status(
             system_id,
@@ -177,13 +191,13 @@ void Vicon::update_vicon_position_estimate(const Location &loc,
     // send older vicon position estimate message
     if (should_send(ViconTypeMask::VICON_POSITION_ESTIMATE) && get_free_msg_buf_index(msg_buf_index)) {
         const mavlink_vicon_position_estimate_t vicon_position_estimate{
-            now_us + time_offset_us,
-            float(pos_corrected.x),
-            float(pos_corrected.y),
-            float(pos_corrected.z),
-            roll,
-            pitch,
-            yaw
+        usec: now_us + time_offset_us,
+        x: float(pos_corrected.x),
+        y: float(pos_corrected.y),
+        z: float(pos_corrected.z),
+        roll: roll,
+        pitch: pitch,
+        yaw: yaw
         };
         mavlink_msg_vicon_position_estimate_encode_status(
             system_id,
@@ -197,10 +211,10 @@ void Vicon::update_vicon_position_estimate(const Location &loc,
     // send vision speed estimate
     if (should_send(ViconTypeMask::VISION_SPEED_ESTIMATE) && get_free_msg_buf_index(msg_buf_index)) {
         const mavlink_vision_speed_estimate_t vicon_speed_estimate{
-            now_us + time_offset_us,
-            vel_corrected.x,
-            vel_corrected.y,
-            vel_corrected.z
+        usec: now_us + time_offset_us,
+        x: vel_corrected.x,
+        y: vel_corrected.y,
+        z: vel_corrected.z
         };
         mavlink_msg_vision_speed_estimate_encode_status(
             system_id,
@@ -267,13 +281,14 @@ void Vicon::update_vicon_position_estimate(const Location &loc,
     // confidence: Normalized confidence level [0, 100]
     if (should_send(ViconTypeMask::VISION_POSITION_DELTA) && get_free_msg_buf_index(msg_buf_index)) {
         const mavlink_vision_position_delta_t vision_position_delta{
-            now_us + time_offset_us,
-            time_delta,
-            { attitude_curr_prev.get_euler_roll(),
-              attitude_curr_prev.get_euler_pitch(),
-              attitude_curr_prev.get_euler_yaw()
-            },
-            {pos_delta.x, pos_delta.y, pos_delta.z}
+        time_usec: now_us + time_offset_us,
+        time_delta_usec: time_delta,
+        angle_delta: { attitude_curr_prev.get_euler_roll(),
+            attitude_curr_prev.get_euler_pitch(),
+            attitude_curr_prev.get_euler_yaw()
+        },
+        position_delta: {pos_delta.x, pos_delta.y, pos_delta.z},
+        confidence: 0
         };
         mavlink_msg_vision_position_delta_encode_status(
             system_id,

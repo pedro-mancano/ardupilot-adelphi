@@ -9,6 +9,7 @@ from __future__ import print_function
 import os
 import numpy
 import math
+import copy
 
 from pymavlink import mavutil
 from pymavlink.rotmat import Vector3
@@ -362,6 +363,20 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
 
     def QAUTOTUNE(self):
         '''test Plane QAutoTune mode'''
+
+        # adjust tune so QAUTOTUNE can cope
+        self.set_parameters({
+            "Q_A_RAT_RLL_P" : 0.15,
+            "Q_A_RAT_RLL_I" : 0.25,
+            "Q_A_RAT_RLL_D" : 0.002,
+            "Q_A_RAT_PIT_P" : 0.15,
+            "Q_A_RAT_PIT_I" : 0.25,
+            "Q_A_RAT_PIT_D" : 0.002,
+            "Q_A_RAT_YAW_P" : 0.18,
+            "Q_A_RAT_YAW_I" : 0.018,
+            "Q_A_ANG_RLL_P" : 4.5,
+            "Q_A_ANG_PIT_P" : 4.5,
+            })
 
         # this is a list of all parameters modified by QAUTOTUNE.  Set
         # them so that when the context is popped we get the original
@@ -808,7 +823,6 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
 
     def QAssist(self):
         '''QuadPlane Assist tests'''
-        # find a motor peak
         self.takeoff(10, mode="QHOVER")
         self.set_rc(3, 1800)
         self.change_mode("FBWA")
@@ -841,6 +855,7 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
                                       comparator=operator.eq)
         self.set_rc(3, 1300)
 
+        # Test angle assist
         self.context_push()
         self.progress("Rolling over to %.0f degrees" % -lim_roll_deg)
         self.set_rc(1, 1000)
@@ -856,9 +871,31 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
         self.wait_roll(lim_roll_deg, 5)
         self.context_pop()
         self.set_rc(1, 1500)
-        self.set_parameter("Q_RTL_MODE", 1)
-        self.change_mode("RTL")
-        self.wait_disarmed(timeout=300)
+
+        # Test alt assist, climb to 60m and set assist alt to 50m
+        self.context_push()
+        guided_loc = self.home_relative_loc_ne(0, 0)
+        guided_loc.alt = 60
+        self.change_mode("GUIDED")
+        self.send_do_reposition(guided_loc)
+        self.wait_altitude(58, 62, relative=True)
+        self.set_parameter("Q_ASSIST_ALT", 50)
+
+        # Try and descent to 40m
+        guided_loc.alt = 40
+        self.send_do_reposition(guided_loc)
+
+        # Expect alt assist to kick in, eg "Alt assist 48.9m"
+        self.wait_statustext(r"Alt assist \d*.\d*m", regex=True, timeout=100)
+
+        # Test transition timeout, should switch to QRTL
+        self.set_parameter("Q_TRANS_FAIL_ACT", 1)
+        self.set_parameter("Q_TRANS_FAIL", 10)
+        self.wait_mode("QRTL")
+
+        self.context_pop()
+
+        self.wait_disarmed(timeout=200)
 
     def LoiterAltQLand(self):
         '''test loitering and qland with terrain involved'''
@@ -1027,12 +1064,26 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
                 raise NotAchievedException("Changed throttle output on mode change to QHOVER")
         self.disarm_vehicle()
 
-    def setup_ICEngine_vehicle(self, start_chan):
-        '''restarts SITL with an IC Engine setup'''
-        self.set_parameters({
-            'ICE_START_CHAN': start_chan,
-        })
+    def CopterTailsitter(self):
+        '''copter tailsitter test'''
+        self.customise_SITL_commandline(
+            [],
+            defaults_filepath=self.model_defaults_filepath('quadplane-copter_tailsitter'),
+            model="quadplane-copter_tailsitter",
+            wipe=True,
+        )
 
+        self.reboot_sitl()
+        self.wait_ready_to_arm()
+        self.takeoff(60, mode='GUIDED')
+        self.context_collect("STATUSTEXT")
+        self.progress("Starting QLAND")
+        self.change_mode("QLAND")
+        self.wait_statustext("Rangefinder engaged")
+        self.wait_disarmed(timeout=100)
+
+    def setup_ICEngine_vehicle(self):
+        '''restarts SITL with an IC Engine setup'''
         model = "quadplane-ice"
         self.customise_SITL_commandline(
             [],
@@ -1044,7 +1095,7 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
     def ICEngine(self):
         '''Test ICE Engine support'''
         rc_engine_start_chan = 11
-        self.setup_ICEngine_vehicle(start_chan=rc_engine_start_chan)
+        self.setup_ICEngine_vehicle()
 
         self.wait_ready_to_arm()
         self.wait_rpm(1, 0, 0, minimum_duration=1)
@@ -1080,10 +1131,57 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
         self.change_mode('FBWA')
         self.wait_servo_channel_value(3, 2000)
 
+        self.start_subtest("Testing automatic restart")
+        # Limit start attempts to 4
+        max_tries = 4
+        self.set_parameter("ICE_STRT_MX_RTRY", max_tries)
+        # Make the engine unable to run (by messing up the RPM sensor)
+        rpm_chan = self.get_parameter("ICE_RPM_CHAN")
+        self.set_parameter("ICE_RPM_CHAN", 120) # Set to a non-existent sensor
+        self.set_rc(rc_engine_start_chan, 2000)
+        self.wait_statustext("Uncommanded engine stop")
+        self.wait_statustext("Starting engine")
+        # Restore the engine
+        self.set_parameter("ICE_RPM_CHAN", rpm_chan)
+        # Make sure the engine continues to run for the next 30 seconds
+        try:
+            self.wait_statustext("Uncommanded engine stop", timeout=30)
+            # The desired result is for the wait_statustext raise AutoTestTimeoutException
+            raise NotAchievedException("Engine stopped unexpectedly")
+        except AutoTestTimeoutException:
+            pass
+        self.context_stop_collecting("STATUSTEXT")
+
+        self.start_subtest("Testing automatic starter attempt limit")
+        # Try this test twice.
+        # For the first run, since the engine has been running successfully in
+        # the previous test for 30 seconds, the limit should reset. For the
+        # second run, after commanding an engine stop, the limit should reset.
+        for i in range(2):
+            self.context_collect("STATUSTEXT")
+            self.set_parameter("ICE_RPM_CHAN", 120) # Set to a non-existent sensor
+            self.set_rc(rc_engine_start_chan, 2000)
+            self.wait_statustext("Engine max crank attempts reached", check_context=True, timeout=30)
+            self.delay_sim_time(30) # wait for another 30 seconds to make sure the engine doesn't restart
+            messages = self.context_get().collections["STATUSTEXT"]
+            self.context_stop_collecting("STATUSTEXT")
+            # check for the exact number of starter attempts
+            attempts = 0
+            for m in messages:
+                if "Starting engine" == m.text:
+                    attempts += 1
+            if attempts != max_tries:
+                raise NotAchievedException(f"Run {i+1}: Expected {max_tries} attempts, got {attempts}")
+            # Command an engine stop
+            self.context_collect("STATUSTEXT")
+            self.set_rc(rc_engine_start_chan, 1000)
+            self.wait_statustext("ignition:0", check_context=True)
+            self.context_stop_collecting("STATUSTEXT")
+
     def ICEngineMission(self):
         '''Test ICE Engine Mission support'''
         rc_engine_start_chan = 11
-        self.setup_ICEngine_vehicle(start_chan=rc_engine_start_chan)
+        self.setup_ICEngine_vehicle()
 
         self.load_mission("mission.txt")
         self.wait_ready_to_arm()
@@ -1101,7 +1199,7 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
         expected_starter_rpm_max = 355
 
         rc_engine_start_chan = 11
-        self.setup_ICEngine_vehicle(start_chan=rc_engine_start_chan)
+        self.setup_ICEngine_vehicle()
 
         self.wait_ready_to_arm()
 
@@ -1286,9 +1384,7 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
 
     def VTOLQuicktune(self):
         '''VTOL Quicktune'''
-        applet_script = "VTOL-quicktune.lua"
-
-        self.install_applet_script(applet_script)
+        self.install_applet_script_context("VTOL-quicktune.lua")
 
         self.set_parameters({
             "SCR_ENABLE": 1,
@@ -1298,7 +1394,6 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
 
         self.reboot_sitl()
 
-        self.context_push()
         self.context_collect('STATUSTEXT')
         self.set_parameters({
             "QUIK_ENABLE" : 1,
@@ -1330,9 +1425,80 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
         self.change_mode("QLAND")
 
         self.wait_disarmed(timeout=120)
-        self.set_parameter("QUIK_ENABLE", 0)
+
+    def VTOLQuicktune_CPP(self):
+        '''VTOL Quicktune in C++'''
+        self.set_parameters({
+            "RC7_OPTION": 181,
+            "QWIK_ENABLE" : 1,
+            "QWIK_DOUBLE_TIME" : 5, # run faster for autotest
+        })
+
+        self.context_push()
+        self.context_collect('STATUSTEXT')
+
+        # reduce roll/pitch gains by 2
+        gain_mul = 0.5
+        soften_params = ['Q_A_RAT_RLL_P', 'Q_A_RAT_RLL_I', 'Q_A_RAT_RLL_D',
+                         'Q_A_RAT_PIT_P', 'Q_A_RAT_PIT_I', 'Q_A_RAT_PIT_D',
+                         'Q_A_RAT_YAW_P', 'Q_A_RAT_YAW_I']
+
+        original_values = self.get_parameters(soften_params)
+
+        softened_values = {}
+        for p in original_values.keys():
+            softened_values[p] = original_values[p] * gain_mul
+        self.set_parameters(softened_values)
+
+        self.wait_ready_to_arm()
+        self.change_mode("QLOITER")
+        self.set_rc(7, 1000)
+        self.arm_vehicle()
+        self.takeoff(20, 'QLOITER')
+
+        # use rc switch to start tune
+        self.set_rc(7, 1500)
+
+        self.wait_text("Quicktune: starting tune", check_context=True)
+        for axis in ['Roll', 'Pitch', 'Yaw']:
+            self.wait_text("Starting %s tune" % axis, check_context=True)
+            self.wait_text("Quicktune: %s D done" % axis, check_context=True, timeout=120)
+            self.wait_text("Quicktune: %s P done" % axis, check_context=True, timeout=120)
+            self.wait_text("Quicktune: %s done" % axis, check_context=True, timeout=120)
+
+        new_values = self.get_parameters(soften_params)
+        for p in original_values.keys():
+            threshold = 0.8 * original_values[p]
+            self.progress("tuned param %s %.4f need %.4f" % (p, new_values[p], threshold))
+            if new_values[p] < threshold:
+                raise NotAchievedException(
+                    "parameter %s %.4f not increased over %.4f" %
+                    (p, new_values[p], threshold))
+
+        self.progress("ensure we are not overtuned")
+        self.set_parameter('SIM_ENGINE_MUL', 0.9)
+
+        self.delay_sim_time(5)
+
+        # and restore it
+        self.set_parameter('SIM_ENGINE_MUL', 1)
+
+        for i in range(5):
+            self.wait_heartbeat()
+
+        if self.statustext_in_collections("ABORTING"):
+            raise NotAchievedException("tune has aborted, overtuned")
+
+        self.progress("using aux fn for save tune")
+
+        # to test aux function method, use aux fn for save
+        self.run_auxfunc(181, 2)
+        self.wait_text("Quicktune: saved", check_context=True)
+        self.change_mode("QLAND")
+
+        self.wait_disarmed(timeout=120)
+        self.set_parameter("QWIK_ENABLE", 0)
         self.context_pop()
-        self.remove_installed_script(applet_script)
         self.reboot_sitl()
 
     def PrecisionLanding(self):
@@ -1556,6 +1722,56 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
             self.wait_servo_channel_value(5, 1000, comparator=operator.eq, timeout=90)
 
         self.fly_home_land_and_disarm()
+
+    def TransitionMinThrottle(self):
+        '''Ensure that TKOFF_THR_MIN is applied during the forward transition'''
+        wps = self.create_simple_relhome_mission([
+            (mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 30),
+            (mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 2000, 0, 30),
+            (mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH, 0, 0, 0),
+        ])
+        self.check_mission_upload_download(wps)
+        self.set_parameter('TKOFF_THR_MIN', 80)
+
+        self.change_mode('AUTO')
+        self.wait_ready_to_arm()
+
+        self.arm_vehicle()
+        self.wait_current_waypoint(2)
+        # Wait for 5 seconds into the transition.
+        self.delay_sim_time(5)
+        # Ensure TKOFF_THR_MIN is still respected.
+        thr_min = self.get_parameter('TKOFF_THR_MIN')
+        self.wait_servo_channel_value(3, 1000+thr_min*10, comparator=operator.eq)
+
+        self.fly_home_land_and_disarm()
+
+    def BackTransitionMinThrottle(self):
+        '''Ensure min throttle is applied during back transition.'''
+        wps = self.create_simple_relhome_mission([
+            (mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 30),
+            (mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 2000, 0, 30),
+            (mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH, 0, 0, 0),
+        ])
+        self.check_mission_upload_download(wps)
+        self.set_parameter('Q_RTL_MODE', 1)
+
+        trim_pwm = 1000 + 10*self.get_parameter("TRIM_THROTTLE")
+        min_pwm = 1000 + 10*self.get_parameter("THR_MIN")
+
+        self.change_mode('AUTO')
+        self.wait_ready_to_arm()
+
+        self.arm_vehicle()
+        self.context_collect('STATUSTEXT')
+
+        self.wait_statustext("VTOL airbrake", check_context=True, timeout=300)
+        self.wait_servo_channel_value(3, trim_pwm, comparator=operator.le, timeout=1)
+
+        self.wait_statustext("VTOL position1", check_context=True, timeout=10)
+        self.wait_servo_channel_value(3, min_pwm+10, comparator=operator.le, timeout=1)
+
+        self.wait_disarmed(timeout=60)
 
     def MAV_CMD_NAV_TAKEOFF(self):
         '''test issuing takeoff command via mavlink'''
@@ -1790,6 +2006,7 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
             self.QAssist,
             self.GyroFFT,
             self.Tailsitter,
+            self.CopterTailsitter,
             self.ICEngine,
             self.ICEngineMission,
             self.MAV_CMD_DO_ENGINE_CONTROL,
@@ -1797,6 +2014,7 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
             self.GUIDEDToAUTO,
             self.BootInAUTO,
             self.Ship,
+            self.WindEstimateConsistency,
             self.MAV_CMD_NAV_LOITER_TO_ALT,
             self.LoiterAltQLand,
             self.VTOLLandSpiral,
@@ -1812,6 +2030,8 @@ class AutoTestQuadPlane(vehicle_test_suite.TestSuite):
             self.RCDisableAirspeedUse,
             self.mission_MAV_CMD_DO_VTOL_TRANSITION,
             self.mavlink_MAV_CMD_DO_VTOL_TRANSITION,
+            self.TransitionMinThrottle,
+            self.BackTransitionMinThrottle,
             self.MAV_CMD_NAV_TAKEOFF,
             self.Q_GUIDED_MODE,
             self.DCMClimbRate,

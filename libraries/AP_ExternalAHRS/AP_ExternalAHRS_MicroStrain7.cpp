@@ -17,7 +17,8 @@
     $ ./Tools/autotest/sim_vehicle.py -v Plane -A "--serial3=uart:/dev/3dm-gq7" -DG
     param set AHRS_EKF_TYPE 11
     param set EAHRS_TYPE 7
-    param set GPS_TYPE 21
+    param set GPS1_TYPE 21
+    param set GPS2_TYPE 21
     param set SERIAL3_BAUD 115
     param set SERIAL3_PROTOCOL 36
   UDEV rules for repeatable USB connection:
@@ -209,7 +210,7 @@ void AP_ExternalAHRS_MicroStrain7::post_filter() const
         AP_ExternalAHRS::gps_data_message_t gps {
             gps_week: filter_data.week,
             ms_tow: filter_data.tow_ms,
-            fix_type: (uint8_t) gnss_data[instance].fix_type,
+            fix_type: AP_GPS_FixType(gnss_data[instance].fix_type),
             satellites_in_view: gnss_data[instance].satellites,
 
             horizontal_pos_accuracy: gnss_data[instance].horizontal_position_accuracy,
@@ -229,7 +230,7 @@ void AP_ExternalAHRS_MicroStrain7::post_filter() const
         };
         // *INDENT-ON*
 
-        if (gps.fix_type >= 3 && !state.have_origin) {
+        if (gps.fix_type >= AP_GPS_FixType::FIX_3D && !state.have_origin) {
             WITH_SEMAPHORE(state.sem);
             state.origin = Location{int32_t(gnss_data[instance].lat),
                                     int32_t(gnss_data[instance].lon),
@@ -320,51 +321,19 @@ void AP_ExternalAHRS_MicroStrain7::get_filter_status(nav_filter_status &status) 
     }
 }
 
-void AP_ExternalAHRS_MicroStrain7::send_status_report(GCS_MAVLINK &link) const
+// get variances
+bool AP_ExternalAHRS_MicroStrain7::get_variances(float &velVar, float &posVar, float &hgtVar, Vector3f &magVar, float &tasVar) const
 {
-    // prepare flags
-    uint16_t flags = 0;
-    nav_filter_status filterStatus;
-    get_filter_status(filterStatus);
-    if (filterStatus.flags.attitude) {
-        flags |= EKF_ATTITUDE;
-    }
-    if (filterStatus.flags.horiz_vel) {
-        flags |= EKF_VELOCITY_HORIZ;
-    }
-    if (filterStatus.flags.vert_vel) {
-        flags |= EKF_VELOCITY_VERT;
-    }
-    if (filterStatus.flags.horiz_pos_rel) {
-        flags |= EKF_POS_HORIZ_REL;
-    }
-    if (filterStatus.flags.horiz_pos_abs) {
-        flags |= EKF_POS_HORIZ_ABS;
-    }
-    if (filterStatus.flags.vert_pos) {
-        flags |= EKF_POS_VERT_ABS;
-    }
-    if (filterStatus.flags.terrain_alt) {
-        flags |= EKF_POS_VERT_AGL;
-    }
-    if (filterStatus.flags.const_pos_mode) {
-        flags |= EKF_CONST_POS_MODE;
-    }
-    if (filterStatus.flags.pred_horiz_pos_rel) {
-        flags |= EKF_PRED_POS_HORIZ_REL;
-    }
-    if (filterStatus.flags.pred_horiz_pos_abs) {
-        flags |= EKF_PRED_POS_HORIZ_ABS;
-    }
-    if (!filterStatus.flags.initalized) {
-        flags |= EKF_UNINITIALIZED;
-    }
+    velVar = filter_data.ned_velocity_uncertainty.length() * vel_gate_scale;
+    posVar = filter_data.ned_position_uncertainty.xy().length() * pos_gate_scale;
+    hgtVar = filter_data.ned_position_uncertainty.z * hgt_gate_scale;
+    tasVar = 0;
+    return true;
+}
 
-    // send message
-    const float vel_gate = 4; // represents hz value data is posted at
-    const float pos_gate = 4; // represents hz value data is posted at
-    const float hgt_gate = 4; // represents hz value data is posted at
-    const float mag_var = 0; //we may need to change this to be like the other gates, set to 0 because mag is ignored by the ins filter in vectornav
+bool AP_ExternalAHRS_MicroStrain7::times_healthy() const
+{
+    uint32_t now = AP_HAL::millis();
 
     const float velocity_variance {filter_data.ned_velocity_uncertainty.length() / vel_gate};
     const float pos_horiz_variance {filter_data.ned_position_uncertainty.xy().length() / pos_gate};
@@ -377,6 +346,25 @@ void AP_ExternalAHRS_MicroStrain7::send_status_report(GCS_MAVLINK &link) const
                                        velocity_variance, pos_horiz_variance, pos_vert_variance,
                                        mag_var, terrain_alt_variance, airspeed_variance);
 
+    // Allow for some slight variance of 10%
+    constexpr float RateFoS = 1.1;
+
+    constexpr uint32_t expected_filter_time_delta_ms = 40;
+    constexpr uint32_t expected_gps_time_delta_ms = 500;
+    constexpr uint32_t expected_imu_time_delta_ms = 40;
+
+    const bool times_healthy = (now - last_imu_pkt < expected_imu_time_delta_ms * RateFoS && \
+                                now - last_gps_pkt < expected_gps_time_delta_ms * RateFoS && \
+                                now - last_filter_pkt < expected_filter_time_delta_ms * RateFoS);
+
+    return times_healthy;
+}
+
+bool AP_ExternalAHRS_MicroStrain7::filter_healthy() const
+{
+    const auto filter_state = static_cast<FilterState>(filter_status.state);
+    const bool filter_healthy = filter_state_healthy(filter_state);
+    return filter_healthy;
 }
 
 bool AP_ExternalAHRS_MicroStrain7::times_healthy() const

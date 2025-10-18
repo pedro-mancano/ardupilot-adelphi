@@ -36,7 +36,9 @@
 #define AP_MAX_NAME_SIZE 16
 
 // optionally enable debug code for dumping keys
+#ifndef AP_PARAM_KEY_DUMP
 #define AP_PARAM_KEY_DUMP 0
+#endif
 
 #if defined(HAL_GCS_ENABLED)
     #define AP_PARAM_DEFAULTS_ENABLED HAL_GCS_ENABLED
@@ -428,6 +430,11 @@ public:
     ///
     static bool load_all();
 
+    // return true if eeprom is full, used for arming check
+    static bool get_eeprom_full(void) {
+        return eeprom_full;
+    }
+
     // returns storage space used:
     static uint16_t storage_used() { return sentinal_offset; }
 
@@ -470,6 +477,24 @@ public:
     // convert old vehicle parameters to new object parameters with scaling - assumes we use the same scaling factor for all values in the table
     static void         convert_old_parameters_scaled(const ConversionInfo *conversion_table, uint8_t table_size, float scaler, uint8_t flags);
 
+    // convert an object which was stored in a vehicle's G2 into a new
+    // object in AP_Vehicle.cpp:
+    struct G2ObjectConversion {
+        void *object_pointer;
+        const struct AP_Param::GroupInfo *var_info;
+        uint16_t old_index;  // Old parameter index in g2
+    };
+    static void         convert_g2_objects(const void *g2, const G2ObjectConversion g2_conversions[], uint8_t num_conversions);
+
+    // convert an object which was stored in a vehicle's top-level
+    // Parameters object into a new object in AP_Vehicle.cpp:
+    struct TopLevelObjectConversion {
+        void *object_pointer;
+        const struct AP_Param::GroupInfo *var_info;
+        uint16_t old_index;  // Old parameter index in g
+    };
+    static void         convert_toplevel_objects(const TopLevelObjectConversion g2_conversions[], uint8_t num_conversions);
+
     /*
       convert width of a parameter, allowing update to wider scalar
       values without changing the parameter indexes. This will return
@@ -497,7 +522,7 @@ public:
     // is_top_level: Is true if the class had its own top level key, param_key. It is false if the class was a subgroup
     static void         convert_class(uint16_t param_key, void *object_pointer,
                                         const struct AP_Param::GroupInfo *group_info,
-                                        uint16_t old_index, uint16_t old_top_element, bool is_top_level);
+                                        uint16_t old_index, bool is_top_level);
 
     /*
       fetch a parameter value based on the index within a group. This
@@ -543,7 +568,11 @@ public:
 
     // return the persistent top level key for the ParamToken key
     static uint16_t get_persistent_key(uint16_t key) { return var_info(key).key; }
-    
+
+    // returns true if this parameter should be settable via the
+    // MAVLink interface:
+    bool allow_set_via_mavlink(uint16_t flags) const;
+
     // count of parameters in tree
     static uint16_t count_parameters(void);
 
@@ -845,6 +874,8 @@ private:
     };
     static defaults_list *default_list;
     static void check_default(AP_Param *ap, float *default_value);
+
+    static bool eeprom_full;
 };
 
 namespace AP {

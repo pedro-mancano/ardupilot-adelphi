@@ -83,7 +83,12 @@ private:
     // scaling factor to make it easier to read
     static const uint8_t char_scale = 2;
 
-    uint8_t buffer[video_lines][video_cols];
+    // get a byte from a buffer
+    uint8_t &getbuffer(uint8_t *buf, uint8_t y, uint8_t x) const {
+        return buf[y*uint32_t(video_cols) + x];
+    }
+
+    uint8_t *buffer;
 
     void update_thread();
     static void *update_thread_start(void *obj);

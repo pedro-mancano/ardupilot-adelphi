@@ -70,7 +70,7 @@ int AP_Filesystem_Mission::open(const char *fname, int flags, bool allow_absolut
     r.num_items = get_num_items(r.mtype);
     if (!readonly) {
         // setup for upload
-        r.writebuf = new ExpandingString();
+        r.writebuf = NEW_NOTHROW ExpandingString();
     } else {
         r.writebuf = nullptr;
     }
