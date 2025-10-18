@@ -85,6 +85,7 @@ private:
   int _write_offset = 0;
   int dropped_count = 0;
   HAL_Semaphore sem;
+  bool hasLanded = false;
 
   // Mission
   const char *header = "Tempo\tXGPS\tYGPS\tZGPS\tELEV\tAIL\tRUD\tTHETA\tPHI\tPSI\tStatus\tAOA\tAOS\n";

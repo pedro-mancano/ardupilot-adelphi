@@ -262,6 +262,14 @@ void Adelphi::update()
     plane.set_mode(plane.mode_stabilize, ModeReason::SCRIPTING);
   }
 
+  // Se passar muito tempo depois de preparado e o modo voltar para o manual, significa que o planador pouso externamente
+  if (this->prepared && plane.get_mode() == plane.mode_manual.mode_number() && AP_HAL::millis() - this->prepared_time > 5000 && !this->hasLanded)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
+    AP::adelphi().set_status(STATUS::LANDED);
+    this->hasLanded = true;
+  }
+
   const double now = this->base_time + (AP_HAL::millis() / 1000.0);
 
   const Location loc = AP::gps().location();
