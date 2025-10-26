@@ -59,7 +59,7 @@ struct Vector2D
   }
 };
 
-enum PlanadorInterfaceFields
+enum class PlanadorInterfaceFields : uint32_t
 {
   YES = 0x696969,
   NO = 0x006900,
@@ -68,12 +68,28 @@ enum PlanadorInterfaceFields
 struct __attribute__((packed)) PlanadorInterfacePacket
 {
   uint8_t id = 0;
-  uint32_t pilot_called_release = PlanadorInterfaceFields::NO;
-  uint32_t ardupilot_release_confirmation = PlanadorInterfaceFields::NO;
+  PlanadorInterfaceFields pilot_called_release = PlanadorInterfaceFields::NO;
+  PlanadorInterfaceFields ardupilot_release_confirmation = PlanadorInterfaceFields::NO;
   uint32_t checksum;
 };
 
 static_assert(sizeof(PlanadorInterfacePacket) == 13, "PlanadorInterfacePacket size is not 13 bytes");
+
+enum class EmergencyInterfaceFields : uint32_t
+{
+  YES = 0x696969,
+  NO = 0x006900,
+};
+
+struct __attribute__((packed)) EmergencyInterfacePacket
+{
+  uint8_t id = 0;
+  EmergencyInterfaceFields command = EmergencyInterfaceFields::NO;
+  uint32_t checksum;
+};
+
+static_assert(sizeof(EmergencyInterfacePacket) == 9, "EmergencyInterfacePacket size is not 9 bytes");
+
 
 Vector2D latLonToCartesian(float lat, float lon, float lat_ref, float lon_ref);
 Vector2D cartesianToLatLon(float x, float y, float lat_ref, float lon_ref);
@@ -106,13 +122,20 @@ private:
   bool has_armed = false;
   bool prepared_to_release = false;
   long prepared_to_release_time = 0;
-  int should_write_to_esp32 = 0;
 
-  // ESP32
-  AP_HAL::OwnPtr<AP_HAL::I2CDevice> esp32_device;
-  uint32_t esp32_last_read_t = 0;
-  PlanadorInterfacePacket esp32_data = {};
-  PlanadorInterfacePacket esp32_data_temp = {};
+  int should_write_to_release_esp32 = 0;
+
+  // I2C communication with Release ESP32
+  AP_HAL::OwnPtr<AP_HAL::I2CDevice> release_esp32_device;
+  uint32_t release_esp32_last_read_t = 0;
+  PlanadorInterfacePacket release_esp32_data = {};
+  PlanadorInterfacePacket release_esp32_data_temp = {};
+
+  // I2C communication with Emergency ESP32
+  AP_HAL::OwnPtr<AP_HAL::I2CDevice> emergency_esp32_device;
+  uint32_t emergency_esp32_last_read_t = 0;
+  EmergencyInterfacePacket emergency_esp32_data = {};
+  EmergencyInterfacePacket emergency_esp32_data_temp = {};
 
 public:
   Adelphi();
@@ -126,10 +149,15 @@ public:
   int log_count();
   void writeBlock(const uint8_t *pBuffer, uint16_t size);
 
-  // i2c communication with esp32
-  bool probe_bus(uint8_t bus, uint8_t address);
-  void esp32_timer();
-  bool esp32_read();
+  // i2c communication with release esp32
+  bool probe_release_bus(uint8_t bus, uint8_t address);
+  void release_esp32_timer();
+  bool release_esp32_read();
+
+  // i2c communication with emergency esp32
+  bool probe_emergency_bus(uint8_t bus, uint8_t address);
+  void emergency_esp32_timer();
+  bool emergency_esp32_read();
 
   // Hooks
   void on_land();
