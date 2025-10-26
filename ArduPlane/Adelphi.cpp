@@ -13,7 +13,7 @@ Adelphi::~Adelphi()
   AP::FS().close(this->file);
 }
 
-// Inicializa o arquivo de log
+// Inicializa o sistema de log e a comunicação com o ESP32
 void Adelphi::init()
 {
   GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Inicializando...");
@@ -92,6 +92,205 @@ exit_sensor_loop:
   }
 }
 
+// Chamado em em Plane::scheduler_tasks (Plane.cpp) - 10Hz
+void Adelphi::update()
+{
+  gcs().send_named_float("adelphi", 15);
+  // Se não tiver fixado o GPS, aguarda
+  if (!this->has_fixed_once && AP::gps().status() < AP_GPS::GPS_Status::GPS_OK_FIX_3D)
+  {
+    // A cada 30 ciclos de 10Hz, envia uma mensagem para o GCS (0.33 Hz)
+    if (this->waiting_gps_fix % 30 == 0)
+    {
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Aguardando GPS fixar...");
+      this->waiting_gps_fix = 0;
+    }
+    this->waiting_gps_fix++;
+    return;
+  }
+
+  // Quando o GPS fixar, salva a posição inicial
+  if (!this->has_fixed_once)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] GPS fixado.");
+    this->has_fixed_once = true;
+
+    this->home = AP::gps().location();
+    this->home_alt = plane.relative_altitude;
+
+    // Calcula o tempo base com base no tempo do GPS (UTC)
+    // Aplica % 86400000 para obter o tempo do dia em milisegundos
+    // Subtrai o tempo atual em milisegundos e divide por 1000 para obter o tempo em segundos
+    // Subtrai 10800 para converter de UTC para BRT
+    this->base_time = (AP::gps().time_week_ms() % 86400000 - AP_HAL::millis()) / 1000.0 - 10800.0;
+
+    AP::adelphi().set_status(STATUS::ATTACHED);
+  }
+
+  // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] In release condition: %lu, should alert plane of release: %d, ardupilot release confirmation: %d, id: %d", this->esp32_data.in_release_condition, this->esp32_data.should_alert_plane_of_release, this->esp32_data.ardupilot_release_confirmation, this->esp32_data.id);
+
+  if (this->prepared_to_release && plane.get_mode() == plane.mode_stabilize.mode_number() && this->esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO && AP_HAL::millis() - this->prepared_to_release_time > 2000)
+  {
+    if (this->esp32_data.pilot_called_release == PlanadorInterfaceFields::YES)
+    {
+      auto mission = AP::mission();
+
+      AP_Mission::Mission_Command home_cmd;
+      AP_Mission::Mission_Command land;
+      AP_Mission::Mission_Command flare;
+
+      if (mission->num_commands() > 0)
+      {
+        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao");
+        mission->read_cmd_from_storage(0, home_cmd);
+        mission->read_cmd_from_storage(mission->num_commands() - 1, land);
+
+        Vector2D land_point = {((float)land.content.location.lat) / 1.0e7f, ((float)land.content.location.lng) / 1.0e7f};
+
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Latitude: %f, Longitude: %f", land_point.x, land_point.y);
+
+        Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
+
+        const Location loc = AP::gps().location();
+
+        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, AP::ahrs().get_yaw(), 0.5, 0.05, 5, 5, 5000);
+
+        if (!points.empty())
+        {
+          GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Calculando flare");
+          auto flare_point_xy = findApproachPoint(land_point_xy, points, 51);
+
+          auto flare_point = cartesianToLatLon(flare_point_xy.x, flare_point_xy.y, land_point.x, land_point.y);
+
+          mission->clear();
+
+          mission->add_cmd(home_cmd);
+          flare.id = MAV_CMD_NAV_WAYPOINT;
+          flare.p1 = 0;
+          flare.content.location = Location{
+              (int)(flare_point.x * 1e7),
+              (int)(flare_point.y * 1e7),
+              1500,
+              Location::AltFrame::ABSOLUTE};
+          mission->add_cmd(flare);
+          mission->add_cmd(land);
+
+          mission->set_current_cmd(0);
+        }
+        else
+        {
+          // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Pontos vazios missao");
+        }
+      }
+
+      this->esp32_data.ardupilot_release_confirmation = PlanadorInterfaceFields::YES;
+      this->should_write_to_esp32 += 5;
+      // change mode to AUTO
+      plane.set_mode(plane.mode_auto, ModeReason::SCRIPTING);
+      AP::adelphi().set_status(STATUS::DEPLOYED);
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Alijamento liberado");
+    }
+    else
+    {
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Alijamento abortado");
+      this->prepared_to_release = false;
+      plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
+    }
+  }
+
+  // Considerar cancelamento o cancelamento para mudar o status se preciso.
+  if (this->esp32_data.pilot_called_release == PlanadorInterfaceFields::YES && !this->prepared_to_release)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Preparando alijamento...");
+    this->prepared_to_release = true;
+    this->prepared_to_release_time = AP_HAL::millis();
+    // change mode to STABILIZE
+    plane.set_mode(plane.mode_stabilize, ModeReason::SCRIPTING);
+  }
+
+  // Se passar muito tempo depois de preparado e o modo voltar para o manual, significa que o planador pouso externamente
+  if (this->prepared_to_release && plane.get_mode() == plane.mode_manual.mode_number() && AP_HAL::millis() - this->prepared_to_release_time > 5000 && !this->hasLanded)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
+    AP::adelphi().set_status(STATUS::LANDED);
+    this->hasLanded = true;
+  }
+
+  const double now = this->base_time + (AP_HAL::millis() / 1000.0);
+
+  const Location loc = AP::gps().location();
+  const Vector3f dist3d = loc.get_distance_NED(this->home);
+  const float alt = plane.relative_altitude - this->home_alt;
+
+  // Euler angles in radians to degrees
+  float roll = wrap_360(AP::ahrs().get_roll() * RAD_TO_DEGf);
+  float pitch = wrap_360(AP::ahrs().get_pitch() * RAD_TO_DEGf);
+  float yaw = wrap_360(AP::ahrs().get_yaw() * RAD_TO_DEGf);
+
+  const float aoa = AP::ahrs().getAOA();
+  const float aos = AP::ahrs().getSSA();
+
+  uint16_t aileron_pwm = 0;
+  SRV_Channels::get_output_pwm(SRV_Channel::k_aileron, aileron_pwm);
+  uint16_t elevator_pwm = 0;
+  SRV_Channels::get_output_pwm(SRV_Channel::k_elevator, elevator_pwm);
+  uint16_t rudder_pwm = 0;
+  SRV_Channels::get_output_pwm(SRV_Channel::k_rudder, rudder_pwm);
+
+  const float aileron = ((float)aileron_pwm) * 0.06f - 90.0f;
+  const float elevator = ((float)elevator_pwm) * 0.0635575823338f - 91.2121469838f;
+  const float rudder = ((float)rudder_pwm) * -0.0448554091f + 68.6076596501f;
+
+  // Aguardar armar para começar a gravar
+  if (!this->has_armed && plane.arming.is_armed())
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Iniciando...");
+    this->has_armed = true;
+  }
+
+  // Se desarmar, para de gravar
+  if (this->has_armed && !plane.arming.is_armed())
+  {
+    this->prepared_to_release = false;
+    this->has_armed = false;
+    return;
+  }
+
+  // Se não tiver armado, não grava
+  if (!this->has_armed)
+  {
+    return;
+  }
+
+  char buf[128];
+  // "Tempo\tXGPS\tYGPS\tZGPS\tELEV\tAIL\tRUD\tTHETA\tPHI\tPSI\tStatus\tAOA\tAOS\n";
+  hal.util->snprintf((char *)buf, 128, "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d\t%f\t%f\n",
+                     now,                             // Tempo
+                     dist3d.x,                        // XGPS
+                     dist3d.y,                        // YGPS
+                     alt,                             // ZGPS
+                     elevator,                        // ELEV
+                     aileron,                         // AIL
+                     rudder,                          // RUD
+                     pitch,                           // THETA
+                     roll,                            // PHI
+                     yaw,                             // PSI
+                     (int)AP::adelphi().get_status(), // Status
+                     aoa,                             // AOA
+                     aos                              // AOS
+  );
+
+  this->writeBlock((uint8_t *)buf, strlen(buf));
+}
+
+void Adelphi::on_land()
+{
+  GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
+  AP::adelphi().set_status(STATUS::LANDED);
+}
+
+#pragma region IO Thread
+// Atualiza o arquivo de log
 void Adelphi::io_timer()
 {
   uint32_t last_run_us = AP_HAL::micros();
@@ -145,198 +344,6 @@ void Adelphi::io_thread()
   this->io_timer();
 }
 
-// Atualiza o arquivo de log
-// Chamado em em Plane::scheduler_tasks (Plane.cpp) - 10Hz
-void Adelphi::update()
-{
-  // Se não tiver fixado o GPS, aguarda
-  if (!this->has_fixed_once && AP::gps().status() < AP_GPS::GPS_Status::GPS_OK_FIX_3D)
-  {
-    // A cada 10 ciclos de 10Hz, envia uma mensagem para o GCS (1 Hz)
-    if (this->waiting_gps_fix % 10 == 0)
-    {
-      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Aguardando GPS fixar...");
-      this->waiting_gps_fix = 0;
-    }
-    this->waiting_gps_fix++;
-    return;
-  }
-
-  // Quando o GPS fixar, salva a posição inicial
-  if (!this->has_fixed_once)
-  {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] GPS fixado.");
-    this->has_fixed_once = true;
-
-    this->home = AP::gps().location();
-    this->home_alt = plane.relative_altitude;
-
-    // Calcula o tempo base com base no tempo do GPS (UTC)
-    // Aplica % 86400000 para obter o tempo do dia em milisegundos
-    // Subtrai o tempo atual em milisegundos e divide por 1000 para obter o tempo em segundos
-    // Subtrai 10800 para converter de UTC para BRT
-    this->base_time = (AP::gps().time_week_ms() % 86400000 - AP_HAL::millis()) / 1000.0 - 10800.0;
-
-    AP::adelphi().set_status(STATUS::ATTACHED);
-  }
-
-  // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] In release condition: %lu, should alert plane of release: %d, ardupilot release confirmation: %d, id: %d", this->esp32_data.in_release_condition, this->esp32_data.should_alert_plane_of_release, this->esp32_data.ardupilot_release_confirmation, this->esp32_data.id);
-
-  if (this->prepared && plane.get_mode() == plane.mode_stabilize.mode_number() && this->esp32_data.ardupilot_release_confirmation == 0 && AP_HAL::millis() - this->prepared_time > 2000)
-  {
-    if (this->esp32_data.in_release_condition == 1)
-    {
-      auto mission = AP::mission();
-
-      AP_Mission::Mission_Command home_cmd;
-      AP_Mission::Mission_Command land;
-      AP_Mission::Mission_Command flare;
-
-      if (mission->num_commands() > 0)
-      {
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao");
-        mission->read_cmd_from_storage(0, home_cmd);
-        mission->read_cmd_from_storage(mission->num_commands() - 1, land);
-
-        Vector2D land_point = {((float)land.content.location.lat) / 1.0e7f, ((float)land.content.location.lng) / 1.0e7f};
-
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Latitude: %f, Longitude: %f", land_point.x, land_point.y);
-
-        Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
-
-        const Location loc = AP::gps().location();
-
-        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, AP::ahrs().get_yaw(), 0.5, 0.05, 5, 5, 5000);
-
-        if (!points.empty())
-        {
-          GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Calculando flare");
-          auto flare_point_xy = findApproachPoint(land_point_xy, points, 51);
-
-          auto flare_point = cartesianToLatLon(flare_point_xy.x, flare_point_xy.y, land_point.x, land_point.y);
-
-          mission->clear();
-
-          mission->add_cmd(home_cmd);
-          flare.id = MAV_CMD_NAV_WAYPOINT;
-          flare.p1 = 0;
-          flare.content.location = Location{
-              (int)(flare_point.x * 1e7),
-              (int)(flare_point.y * 1e7),
-              1500,
-              Location::AltFrame::ABSOLUTE};
-          mission->add_cmd(flare);
-          mission->add_cmd(land);
-
-          mission->set_current_cmd(0);
-        }
-        else
-        {
-          // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Pontos vazios missao");
-        }
-      }
-
-      this->esp32_data.ardupilot_release_confirmation = this->esp32_data.id;
-      this->should_write_to_esp32 = true;
-      // change mode to AUTO
-      plane.set_mode(plane.mode_auto, ModeReason::SCRIPTING);
-      AP::adelphi().set_status(STATUS::DEPLOYED);
-      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Alijamento liberado");
-    }
-    else
-    {
-      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Alijamento abortado");
-      this->prepared = false;
-      plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
-    }
-  }
-
-  // Consderar cancelamento o cancelmaneto para mudar o status se preciso.
-
-  if (this->esp32_data.in_release_condition == 1 && !this->prepared)
-  {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Preparando alijamento...");
-    this->prepared = true;
-    this->prepared_time = AP_HAL::millis();
-    // change mode to STABILIZE
-    plane.set_mode(plane.mode_stabilize, ModeReason::SCRIPTING);
-  }
-
-  // Se passar muito tempo depois de preparado e o modo voltar para o manual, significa que o planador pouso externamente
-  if (this->prepared && plane.get_mode() == plane.mode_manual.mode_number() && AP_HAL::millis() - this->prepared_time > 5000 && !this->hasLanded)
-  {
-    GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
-    AP::adelphi().set_status(STATUS::LANDED);
-    this->hasLanded = true;
-  }
-
-  const double now = this->base_time + (AP_HAL::millis() / 1000.0);
-
-  const Location loc = AP::gps().location();
-  const Vector3f dist3d = loc.get_distance_NED(this->home);
-  const float alt = plane.relative_altitude - this->home_alt;
-
-  // Euler angles in radians to degrees
-  float roll = wrap_360(AP::ahrs().get_roll() * RAD_TO_DEGf);
-  float pitch = wrap_360(AP::ahrs().get_pitch() * RAD_TO_DEGf);
-  float yaw = wrap_360(AP::ahrs().get_yaw() * RAD_TO_DEGf);
-
-  const float aoa = AP::ahrs().getAOA();
-  const float aos = AP::ahrs().getSSA();
-
-  uint16_t aileron_pwm = 0;
-  SRV_Channels::get_output_pwm(SRV_Channel::k_aileron, aileron_pwm);
-  uint16_t elevator_pwm = 0;
-  SRV_Channels::get_output_pwm(SRV_Channel::k_elevator, elevator_pwm);
-  uint16_t rudder_pwm = 0;
-  SRV_Channels::get_output_pwm(SRV_Channel::k_rudder, rudder_pwm);
-
-  const float aileron = ((float)aileron_pwm) * 0.06f - 90.0f;
-  const float elevator = ((float)elevator_pwm) * 0.0635575823338f - 91.2121469838f;
-  const float rudder = ((float)rudder_pwm) * -0.0448554091f + 68.6076596501f;
-
-  // Aguardar armar para começar a gravar
-  if (!this->has_armed && plane.arming.is_armed())
-  {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Iniciando...");
-    this->has_armed = true;
-  }
-
-  // Se desarmar, para de gravar
-  if (this->has_armed && !plane.arming.is_armed())
-  {
-    this->prepared = false;
-    this->has_armed = false;
-    return;
-  }
-
-  // Se não tiver armado, não grava
-  if (!this->has_armed)
-  {
-    return;
-  }
-
-  char buf[128];
-  // "Tempo\tXGPS\tYGPS\tZGPS\tELEV\tAIL\tRUD\tTHETA\tPHI\tPSI\tStatus\tAOA\tAOS\n";
-  hal.util->snprintf((char *)buf, 128, "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d\t%f\t%f\n",
-                     now,                             // Tempo
-                     dist3d.x,                        // XGPS
-                     dist3d.y,                        // YGPS
-                     alt,                             // ZGPS
-                     elevator,                        // ELEV
-                     aileron,                         // AIL
-                     rudder,                          // RUD
-                     pitch,                           // THETA
-                     roll,                            // PHI
-                     yaw,                             // PSI
-                     (int)AP::adelphi().get_status(), // Status
-                     aoa,                             // AOA
-                     aos                              // AOS
-  );
-
-  this->writeBlock((uint8_t *)buf, strlen(buf));
-}
-
 void Adelphi::writeBlock(const uint8_t *pBuffer, uint16_t size)
 {
   // Maybe our buffer doesn't have enough space
@@ -387,33 +394,29 @@ int Adelphi::log_count()
 
   return count;
 }
+#pragma endregion IO Thread
 
+#pragma region ESP32 I2C Communication
 void Adelphi::esp32_timer()
 {
-  if (should_write_to_esp32)
+  if (should_write_to_esp32 > 0)
   {
-    uint8_t checksum = calcChecksum((uint8_t *)(&esp32_data), sizeof(DataFromPlanador) - sizeof(uint32_t));
+    uint8_t checksum = calcChecksum((uint8_t *)(&esp32_data), sizeof(PlanadorInterfacePacket) - sizeof(uint32_t));
     esp32_data.checksum = checksum;
-    esp32_device->transfer((uint8_t *)(&esp32_data), sizeof(DataFromPlanador), nullptr, 0);
-    should_write_to_esp32 = false;
+    esp32_device->transfer((uint8_t *)(&esp32_data), sizeof(PlanadorInterfacePacket), nullptr, 0);
+    should_write_to_esp32--;
   }
-  // read i2c buffer on 0x69
+  // read i2c buffer
   esp32_read();
 }
 
 bool Adelphi::esp32_read()
 {
-
-  if (esp32_device->read((uint8_t *)(&esp32_data_temp), sizeof(DataFromPlanador)))
+  if (esp32_device->read((uint8_t *)(&esp32_data_temp), sizeof(PlanadorInterfacePacket)))
   {
-    // if (esp32_data_temp.checksum != calcChecksum((uint8_t *)(&esp32_data_temp), sizeof(DataFromPlanador) - sizeof(uint32_t)))
-    //{
-    //   GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "ESP32Planador[Adelphi]: Checksum error, expected %d got %d", calcChecksum((uint8_t *)(&esp32_data_temp), sizeof(DataFromPlanador) - sizeof(uint32_t)), esp32_data_temp.checksum);
-    //   return false;
-    // }
     if (esp32_data_temp.id == 0x69)
     {
-      esp32_data = esp32_data_temp;
+      esp32_data.pilot_called_release = esp32_data_temp.pilot_called_release;
       esp32_last_read_t = AP_HAL::millis();
       return true;
     }
@@ -431,7 +434,7 @@ bool Adelphi::probe_bus(uint8_t bus, uint8_t address)
 
   WITH_SEMAPHORE(esp32_device->get_semaphore());
 
-  esp32_device->read((uint8_t *)(&esp32_data), sizeof(DataFromPlanador));
+  esp32_device->read((uint8_t *)(&esp32_data), sizeof(PlanadorInterfacePacket));
   // lots of retries during probe
   esp32_device->set_retries(10);
 
@@ -443,16 +446,12 @@ bool Adelphi::probe_bus(uint8_t bus, uint8_t address)
     {
       found = true;
       break;
+      
     }
+    hal.scheduler->delay_microseconds(100);
   }
 
   return found;
-}
-
-void Adelphi::on_land()
-{
-  GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
-  AP::adelphi().set_status(STATUS::LANDED);
 }
 
 uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
@@ -464,7 +463,11 @@ uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
   }
   return checksum;
 }
+#pragma endregion ESP32 I2C Communication
 
+
+
+#pragma region Path Calculation Functions
 // Convert latitude/longitude to Cartesian coordinates relative to a reference point
 Vector2D latLonToCartesian(float lat, float lon, float lat_ref, float lon_ref)
 {
@@ -575,3 +578,4 @@ Vector2D findApproachPoint(const Vector2D &target_point, const std::vector<Vecto
 
   return approach_point;
 }
+#pragma endregion Path Calculation Functions

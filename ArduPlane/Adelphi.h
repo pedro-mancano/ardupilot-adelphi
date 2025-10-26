@@ -59,17 +59,21 @@ struct Vector2D
   }
 };
 
-struct DataFromPlanador
+enum PlanadorInterfaceFields
 {
-  uint8_t id = 0;
-  uint32_t in_release_condition = 0;
-  uint8_t should_alert_plane_of_release = 0;
-  uint8_t ardupilot_release_confirmation = 0;
-  uint8_t data[24] = {0};
-  uint8_t checksum;
+  YES = 0x696969,
+  NO = 0x006900,
 };
 
-static_assert(sizeof(DataFromPlanador) == 36, "DataToPlanador size is not 128 bytes");
+struct __attribute__((packed)) PlanadorInterfacePacket
+{
+  uint8_t id = 0;
+  uint32_t pilot_called_release = PlanadorInterfaceFields::NO;
+  uint32_t ardupilot_release_confirmation = PlanadorInterfaceFields::NO;
+  uint32_t checksum;
+};
+
+static_assert(sizeof(PlanadorInterfacePacket) == 13, "PlanadorInterfacePacket size is not 13 bytes");
 
 Vector2D latLonToCartesian(float lat, float lon, float lat_ref, float lon_ref);
 Vector2D cartesianToLatLon(float x, float y, float lat_ref, float lon_ref);
@@ -100,15 +104,15 @@ private:
   float home_alt;
 
   bool has_armed = false;
-  bool prepared = false;
-  long prepared_time = 0;
-  bool should_write_to_esp32 = false;
+  bool prepared_to_release = false;
+  long prepared_to_release_time = 0;
+  int should_write_to_esp32 = 0;
 
   // ESP32
   AP_HAL::OwnPtr<AP_HAL::I2CDevice> esp32_device;
   uint32_t esp32_last_read_t = 0;
-  DataFromPlanador esp32_data = {};
-  DataFromPlanador esp32_data_temp = {};
+  PlanadorInterfacePacket esp32_data = {};
+  PlanadorInterfacePacket esp32_data_temp = {};
 
 public:
   Adelphi();
