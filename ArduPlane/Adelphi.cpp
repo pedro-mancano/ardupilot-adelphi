@@ -106,7 +106,19 @@ void Adelphi::update()
 {
   if (this->emergency_esp32_data.command == EmergencyInterfaceFields::YES)
   {
-    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "[Adelphi] Condicao de emergencia detectada!");
+    if (this->emergency_msg_count % 30 == 0)
+      GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "[Adelphi] Condicao de emergencia detectada!");
+
+    //Set mode manual
+    if (plane.get_mode() != plane.mode_manual.mode_number())
+    {
+      plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
+    }
+
+    plane.channel_rudder->set_override(plane.channel_rudder->get_radio_max(), AP_HAL::millis());
+
+    this->emergency_msg_count++;
+
     return;
   }
   // Se não tiver fixado o GPS, aguarda
@@ -171,7 +183,7 @@ void Adelphi::update()
         if (!points.empty())
         {
           GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Calculando flare");
-          auto flare_point_xy = findApproachPoint(land_point_xy, points, 51);
+          auto flare_point_xy = findApproachPoint(land_point_xy, points, 125);
 
           auto flare_point = cartesianToLatLon(flare_point_xy.x, flare_point_xy.y, land_point.x, land_point.y);
 
@@ -183,8 +195,8 @@ void Adelphi::update()
           flare.content.location = Location{
               (int)(flare_point.x * 1e7),
               (int)(flare_point.y * 1e7),
-              1500,
-              Location::AltFrame::ABSOLUTE};
+              2500,
+              Location::AltFrame::ABOVE_HOME};
           mission->add_cmd(flare);
           mission->add_cmd(land);
 

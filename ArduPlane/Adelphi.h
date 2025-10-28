@@ -107,13 +107,16 @@ private:
   int dropped_count = 0;
   HAL_Semaphore sem;
   bool hasLanded = false;
+  
+  // Emergency
+  int emergency_msg_count = 0;
 
   // Mission
   const char *header = "Tempo\tXGPS\tYGPS\tZGPS\tELEV\tAIL\tRUD\tTHETA\tPHI\tPSI\tStatus\tAOA\tAOS\n";
-
+  
   int waiting_gps_fix = 0;
   bool has_fixed_once = false;
-
+  
   double base_time = -1;
 
   Location home;
