@@ -166,13 +166,11 @@ void Adelphi::update()
 
       if (mission->num_commands() > 0)
       {
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao");
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao");
         mission->read_cmd_from_storage(0, home_cmd);
         mission->read_cmd_from_storage(mission->num_commands() - 1, land);
 
         Vector2D land_point = {((float)land.content.location.lat) / 1.0e7f, ((float)land.content.location.lng) / 1.0e7f};
-
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Latitude: %f, Longitude: %f", land_point.x, land_point.y);
 
         Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
 
