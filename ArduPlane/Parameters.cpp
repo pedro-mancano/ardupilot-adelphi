@@ -919,7 +919,6 @@ const AP_Param::Info Plane::var_info[] = {
 
     // @Group: ADELPHI_
     // @Path: ../libraries/AC_AdelphiLinker/AdelphiLinker.cpp
-    GOBJECT(adelphi_linker,                "ADELPHI_", AdelphiLinker),
 
     // @Group: NAVL1_
     // @Path: ../libraries/AP_L1_Control/AP_L1_Control.cpp

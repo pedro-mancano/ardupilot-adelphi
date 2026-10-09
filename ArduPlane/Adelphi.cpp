@@ -4,123 +4,79 @@
 // Construtor
 Adelphi::Adelphi()
 {
+  release_esp32_data.id = 0x69;
 }
 
 // Destrutor
 Adelphi::~Adelphi()
 {
-  // Fecha o arquivo
-  AP::FS().close(this->file);
 }
 
-// Inicializa o sistema de log e a comunicação com o ESP32
+void Adelphi::trigger_emergency()
+{
+  this->emergency_active = true;
+  GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "[Adelphi] Emergencia via MAVLink acionada!");
+}
+
+void Adelphi::on_emergency_actived()
+{
+  if (!this->emergency_active)
+  {
+    return;
+  }
+
+  if (this->emergency_msg_count % 30 == 0)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "[Adelphi] Condicao de emergencia ativa!");
+  }
+
+  if (plane.get_mode() != plane.mode_manual.mode_number())
+  {
+    plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
+  }
+
+  plane.channel_rudder->set_override(plane.channel_rudder->get_radio_max(), AP_HAL::millis());
+  this->emergency_msg_count++;
+}
+
+// Inicializa a comunicação com o ESP32
 void Adelphi::init()
 {
-  GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Inicializando...");
+  GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Inicializando e buscando modulo de alijamento UART...");
 
-  int log_count = this->log_count();
-  char log_filename[32]{0};
-  if (log_count == 0)
-  {
-    hal.util->snprintf(log_filename, 32, "%s%s", ADELPHI_LOG_FILE_NAME, ADELPHI_LOG_FILE_EXT);
-  }
-  else
-  {
-    hal.util->snprintf(log_filename, 32, "%s_%d%s", ADELPHI_LOG_FILE_NAME, log_count, ADELPHI_LOG_FILE_EXT);
-  }
-
-  EXPECT_DELAY_MS(3000);
-  this->file =
-      AP::FS().open(log_filename, O_WRONLY | O_CREAT | O_TRUNC);
-
-  AP::FS().write(this->file, this->header, strlen(this->header));
-  AP::FS().fsync(this->file);
-
-  GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Inicializado.");
-
-  this->writebuf.set_size(4096);
-  this->writebuf.clear();
-  this->_write_offset = 0;
-
-  if (!hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&Adelphi::io_thread, void), "adelphi_log_io", 4096, AP_HAL::Scheduler::PRIORITY_IO, 1))
-  {
-    AP_HAL::panic("Failed to start Adelphi IO thread");
-  }
-
-  // Inicializar conexão com o ESP32
-  /*bool found_release_esp32 = false;
-
-  static const uint8_t addresses[] = {0x69};
-
-  FOREACH_I2C_EXTERNAL(bus)
-  {
-    for (uint8_t addr : addresses)
-    {
-      if (probe_release_bus(bus, addr))
-      {
-        found_release_esp32 = true;
-        goto exit_sensor_loop;
-      }
+  bool found_release_esp32 = false;
+  for (uint8_t i = 1; i <= 3; i++) {
+    found_release_esp32 = probe_release_bus();
+    if (found_release_esp32) {
+      break;
     }
-  }
-  FOREACH_I2C_INTERNAL(bus)
-  {
-    for (uint8_t addr : addresses)
-    {
-      if (probe_release_bus(bus, addr))
-      {
-        found_release_esp32 = true;
-        goto exit_sensor_loop;
-      }
+    
+    GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Tentativa %d/3: Modulo UART nao encontrado. Tentando novamente em 1s...", i);
+    
+    if (i < 3) {
+      hal.scheduler->delay(1000); // Espera 1 segundo
     }
   }
 
-  exit_sensor_loop:*/
-
-  bool found_release_esp32 = probe_release_bus(1, 0x69);
   if (found_release_esp32)
   {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "ESP32Planador[Adelphi]: Found bus %u addr 0x%02x", release_esp32_device->bus_num(), release_esp32_device->get_bus_address());
-    // drop to 2 retries for runtime (better performance)
-    release_esp32_device->set_retries(2);
-    release_esp32_device->register_periodic_callback(20000,
-                                                     FUNCTOR_BIND_MEMBER(&Adelphi::release_esp32_timer, void));
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Sucesso! Modulo UART reconhecido.");
   }
   else
-    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "ESP32Planador[Adelphi]: not found");
-
-  bool found_emergency_esp32 = probe_emergency_bus(1, 0x68);
-  if (found_emergency_esp32)
   {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "ESP32Emergencia[Adelphi]: Found bus %u addr 0x%02x", emergency_esp32_device->bus_num(), emergency_esp32_device->get_bus_address());
-    // drop to 2 retries for runtime (better performance)
-    emergency_esp32_device->set_retries(2);
-    emergency_esp32_device->register_periodic_callback(100000,
-                                                       FUNCTOR_BIND_MEMBER(&Adelphi::emergency_esp32_timer, void));
-  }else
-    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "ESP32Emergencia[Adelphi]: not found");
+    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "[Adelphi] Falha critica: Modulo de alijamento UART NAO reconhecido apos 3 tentativas.");
+  }
 }
 
 // Chamado em em Plane::scheduler_tasks (Plane.cpp) - 10Hz
 void Adelphi::update()
 {
-  if (this->emergency_esp32_data.command == EmergencyInterfaceFields::YES)
-  {
-    if (this->emergency_msg_count % 30 == 0)
-      GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "[Adelphi] Condicao de emergencia detectada!");
+  this->on_emergency_actived();
 
-    //Set mode manual
-    if (plane.get_mode() != plane.mode_manual.mode_number())
-    {
-      plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
-    }
-
-    plane.channel_rudder->set_override(plane.channel_rudder->get_radio_max(), AP_HAL::millis());
-
-    this->emergency_msg_count++;
-
-    return;
+  if (release_esp32_uart != nullptr) {
+      release_esp32_timer();
   }
+
   // Se não tiver fixado o GPS, aguarda
   if (!this->has_fixed_once && AP::gps().status() < AP_GPS::GPS_Status::GPS_OK_FIX_3D)
   {
@@ -143,16 +99,8 @@ void Adelphi::update()
     this->home = AP::gps().location();
     this->home_alt = plane.relative_altitude;
 
-    // Calcula o tempo base com base no tempo do GPS (UTC)
-    // Aplica % 86400000 para obter o tempo do dia em milisegundos
-    // Subtrai o tempo atual em milisegundos e divide por 1000 para obter o tempo em segundos
-    // Subtrai 10800 para converter de UTC para BRT
-    this->base_time = (AP::gps().time_week_ms() % 86400000 - AP_HAL::millis()) / 1000.0 - 10800.0;
-
     AP::adelphi().set_status(STATUS::ATTACHED);
   }
-
-  // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] In release condition: %lu, should alert plane of release: %d, ardupilot release confirmation: %d, id: %d", this->release_esp32_data.in_release_condition, this->release_esp32_data.should_alert_plane_of_release, this->release_esp32_data.ardupilot_release_confirmation, this->release_esp32_data.id);
 
   if (this->prepared_to_release && plane.get_mode() == plane.mode_stabilize.mode_number() && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO && AP_HAL::millis() - this->prepared_to_release_time > 2000)
   {
@@ -200,10 +148,6 @@ void Adelphi::update()
 
           mission->set_current_cmd(0);
         }
-        else
-        {
-          // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Pontos vazios missao");
-        }
       }
 
       this->release_esp32_data.ardupilot_release_confirmation = PlanadorInterfaceFields::YES;
@@ -238,72 +182,6 @@ void Adelphi::update()
     AP::adelphi().set_status(STATUS::LANDED);
     this->hasLanded = true;
   }
-
-  const double now = this->base_time + (AP_HAL::millis() / 1000.0);
-
-  const Location loc = AP::gps().location();
-  const Vector3f dist3d = loc.get_distance_NED(this->home);
-  const float alt = plane.relative_altitude - this->home_alt;
-
-  // Euler angles in radians to degrees
-  float roll = wrap_360(AP::ahrs().get_roll() * RAD_TO_DEGf);
-  float pitch = wrap_360(AP::ahrs().get_pitch() * RAD_TO_DEGf);
-  float yaw = wrap_360(AP::ahrs().get_yaw() * RAD_TO_DEGf);
-
-  const float aoa = AP::ahrs().getAOA();
-  const float aos = AP::ahrs().getSSA();
-
-  uint16_t aileron_pwm = 0;
-  SRV_Channels::get_output_pwm(SRV_Channel::k_aileron, aileron_pwm);
-  uint16_t elevator_pwm = 0;
-  SRV_Channels::get_output_pwm(SRV_Channel::k_elevator, elevator_pwm);
-  uint16_t rudder_pwm = 0;
-  SRV_Channels::get_output_pwm(SRV_Channel::k_rudder, rudder_pwm);
-
-  const float aileron = ((float)aileron_pwm) * 0.06f - 90.0f;
-  const float elevator = ((float)elevator_pwm) * 0.0635575823338f - 91.2121469838f;
-  const float rudder = ((float)rudder_pwm) * -0.0448554091f + 68.6076596501f;
-
-  // Aguardar armar para começar a gravar
-  if (!this->has_armed && plane.arming.is_armed())
-  {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Iniciando...");
-    this->has_armed = true;
-  }
-
-  // Se desarmar, para de gravar
-  if (this->has_armed && !plane.arming.is_armed())
-  {
-    this->prepared_to_release = false;
-    this->has_armed = false;
-    return;
-  }
-
-  // Se não tiver armado, não grava
-  if (!this->has_armed)
-  {
-    return;
-  }
-
-  char buf[128];
-  // "Tempo\tXGPS\tYGPS\tZGPS\tELEV\tAIL\tRUD\tTHETA\tPHI\tPSI\tStatus\tAOA\tAOS\n";
-  hal.util->snprintf((char *)buf, 128, "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%d\t%f\t%f\n",
-                     now,                             // Tempo
-                     dist3d.x,                        // XGPS
-                     dist3d.y,                        // YGPS
-                     alt,                             // ZGPS
-                     elevator,                        // ELEV
-                     aileron,                         // AIL
-                     rudder,                          // RUD
-                     pitch,                           // THETA
-                     roll,                            // PHI
-                     yaw,                             // PSI
-                     (int)AP::adelphi().get_status(), // Status
-                     aoa,                             // AOA
-                     aos                              // AOS
-  );
-
-  this->writeBlock((uint8_t *)buf, strlen(buf));
 }
 
 void Adelphi::on_land()
@@ -312,215 +190,85 @@ void Adelphi::on_land()
   AP::adelphi().set_status(STATUS::LANDED);
 }
 
-#pragma region IO Thread
-// Atualiza o arquivo de log
-void Adelphi::io_timer()
-{
-  uint32_t last_run_us = AP_HAL::micros();
-
-  while (true)
-  {
-    uint32_t now = AP_HAL::micros();
-
-    uint32_t delay = 250U;
-    if (now - last_run_us < 1000)
-    {
-      delay = MAX(1000 - (now - last_run_us), delay);
-    }
-    hal.scheduler->delay_microseconds(delay);
-    last_run_us = AP_HAL::micros();
-
-    uint32_t nbytes = this->writebuf.available();
-
-    if (nbytes == 0)
-    {
-      continue;
-    }
-
-    uint32_t size;
-    const uint8_t *head = this->writebuf.readptr(size);
-    nbytes = MIN(nbytes, size);
-
-    if ((nbytes + _write_offset) % 512 != 0)
-    {
-      uint32_t ofs = (nbytes + _write_offset) % 512;
-      if (ofs < nbytes)
-      {
-        nbytes -= ofs;
-      }
-    }
-
-    if (nbytes > 0)
-    {
-      this->sem.take(1);
-      ssize_t nwritten = AP::FS().write(this->file, head, nbytes);
-      AP::FS().fsync(this->file);
-      this->sem.give();
-      this->writebuf.advance(nwritten);
-      _write_offset += nwritten;
-    }
-  }
-}
-
-void Adelphi::io_thread()
-{
-  this->io_timer();
-}
-
-void Adelphi::writeBlock(const uint8_t *pBuffer, uint16_t size)
-{
-  // Maybe our buffer doesn't have enough space
-  uint32_t space = this->writebuf.space();
-
-  // If the buffer is full, drop the data
-  if (space < size)
-  {
-    this->dropped_count++;
-    return;
-  }
-
-  this->writebuf.write(pBuffer, size);
-}
-
-int Adelphi::log_count()
-{
-  auto *d = AP::FS().opendir(".");
-  if (d == nullptr)
-  {
-    GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "[Adelphi] Failed to open home dir");
-    return -1;
-  }
-
-  uint32_t count = 0;
-
-  EXPECT_DELAY_MS(2000);
-
-  for (auto de = AP::FS().readdir(d); de; de = AP::FS().readdir(d))
-  {
-    EXPECT_DELAY_MS(100);
-
-    uint32_t size = strlen(de->d_name);
-
-    if (size <= 4)
-    {
-      continue;
-    }
-
-    // Check if de->d_name starsWith ADELPHI_LOG_FILE_NAME
-    if (strncmp(de->d_name, ADELPHI_LOG_FILE_NAME, strlen(ADELPHI_LOG_FILE_NAME)) == 0)
-    {
-      count++;
-    }
-  }
-
-  AP::FS().closedir(d);
-
-  return count;
-}
-#pragma endregion IO Thread
-
-#pragma region ESP32 I2C Communication
+#pragma region ESP32 UART Communication
 void Adelphi::release_esp32_timer()
 {
-  if (should_write_to_release_esp32 > 0)
+  static uint32_t last_send = 0;
+  if (release_esp32_uart != nullptr && (should_write_to_release_esp32 > 0 || AP_HAL::millis() - last_send > 1000))
   {
+    if (should_write_to_release_esp32 > 0) should_write_to_release_esp32--;
+    last_send = AP_HAL::millis();
+    
+    release_esp32_data.ardupilot_millis = AP_HAL::millis();
     uint8_t checksum = calcChecksum((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket) - sizeof(uint32_t));
     release_esp32_data.checksum = checksum;
-    release_esp32_device->transfer((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket), nullptr, 0);
-    should_write_to_release_esp32--;
+    release_esp32_uart->write((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket));
   }
-  // read i2c buffer
+  // read uart buffer
   release_esp32_read();
-}
-
-void Adelphi::emergency_esp32_timer()
-{
-  emergency_esp32_read();
 }
 
 bool Adelphi::release_esp32_read()
 {
-  if (release_esp32_device->read((uint8_t *)(&release_esp32_data_temp), sizeof(PlanadorInterfacePacket)))
-  {
-    if (release_esp32_data_temp.id == 0x69)
-    {
-      release_esp32_data.pilot_called_release = release_esp32_data_temp.pilot_called_release;
-      release_esp32_last_read_t = AP_HAL::millis();
-      return true;
-    }
+  if (release_esp32_uart == nullptr) return false;
+
+  bool got_packet = false;
+  static uint8_t buf[sizeof(PlanadorInterfacePacket)];
+  static uint8_t buf_idx = 0;
+
+  while (release_esp32_uart->available() > 0) {
+      uint8_t b = release_esp32_uart->read();
+      buf[buf_idx++] = b;
+
+      if (buf_idx == 1 && buf[0] != 0x55) { // First byte of header 0xAA55 in little endian
+          buf_idx = 0;
+      }
+      else if (buf_idx == 2 && buf[1] != 0xAA) {
+          buf_idx = 0;
+      }
+      else if (buf_idx == sizeof(PlanadorInterfacePacket)) {
+          memcpy(&release_esp32_data_temp, buf, sizeof(PlanadorInterfacePacket));
+          buf_idx = 0;
+          
+          uint32_t received_checksum = release_esp32_data_temp.checksum;
+          uint32_t calculated_checksum = calcChecksum((uint8_t *)(&release_esp32_data_temp), sizeof(PlanadorInterfacePacket) - sizeof(uint32_t));
+
+          if (release_esp32_data_temp.id == 0x69 && received_checksum == calculated_checksum)
+          {
+              release_esp32_data.pilot_called_release = release_esp32_data_temp.pilot_called_release;
+              release_esp32_last_read_t = AP_HAL::millis();
+              got_packet = true;
+          }
+      }
   }
-  return false;
+  return got_packet;
 }
 
-bool Adelphi::emergency_esp32_read()
+bool Adelphi::probe_release_bus()
 {
-  if (emergency_esp32_device->read((uint8_t *)(&emergency_esp32_data_temp), sizeof(EmergencyInterfacePacket)))
-  {
-    if (emergency_esp32_data_temp.id == 0x68)
-    {
-      emergency_esp32_data.command = emergency_esp32_data_temp.command;
-      emergency_esp32_last_read_t = AP_HAL::millis();
-      return true;
-    }
-  }
-  return false;
-}
-
-bool Adelphi::probe_release_bus(uint8_t bus, uint8_t address)
-{
-  release_esp32_device = hal.i2c_mgr->get_device(bus, address);
-  if (!release_esp32_device)
+  release_esp32_uart = AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_Adelphi, 0);
+  if (!release_esp32_uart)
   {
     return false;
   }
+  
+  release_esp32_uart->begin(AP::serialmanager().find_baudrate(AP_SerialManager::SerialProtocol_Adelphi, 0));
 
-  WITH_SEMAPHORE(release_esp32_device->get_semaphore());
-
-  release_esp32_device->read((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket));
-  // lots of retries during probe
-  release_esp32_device->set_retries(10);
+  // Send a packet to trigger response
+  uint8_t checksum = calcChecksum((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket) - sizeof(uint32_t));
+  release_esp32_data.checksum = checksum;
+  release_esp32_uart->write((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket));
 
   bool found = false;
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < 100; i++) // 100 * 10ms = 1s timeout
   {
     bool success = release_esp32_read();
     if (success)
     {
       found = true;
       break;
-      
     }
-    hal.scheduler->delay_microseconds(100);
-  }
-
-  return found;
-}
-
-bool Adelphi::probe_emergency_bus(uint8_t bus, uint8_t address)
-{
-  emergency_esp32_device = hal.i2c_mgr->get_device(bus, address);
-  if (!emergency_esp32_device)
-  {
-    return false;
-  }
-
-  WITH_SEMAPHORE(emergency_esp32_device->get_semaphore());
-
-  emergency_esp32_device->read((uint8_t *)(&emergency_esp32_data), sizeof(EmergencyInterfacePacket));
-  // lots of retries during probe
-  emergency_esp32_device->set_retries(10);
-
-  bool found = false;
-  for (int i = 0; i < 10; i++)
-  {
-    bool success = emergency_esp32_read();
-    if (success)
-    {
-      found = true;
-      break;
-      
-    }
-    hal.scheduler->delay_microseconds(100);
+    hal.scheduler->delay(10);
   }
 
   return found;
@@ -535,7 +283,7 @@ uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
   }
   return checksum;
 }
-#pragma endregion ESP32 I2C Communication
+#pragma endregion ESP32 UART Communication
 
 #pragma region Path Calculation Functions
 // Convert latitude/longitude to Cartesian coordinates relative to a reference point

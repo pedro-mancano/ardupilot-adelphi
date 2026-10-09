@@ -1106,6 +1106,10 @@ MAV_RESULT GCS_MAVLINK_Plane::handle_command_int_packet(const mavlink_command_in
         plane.handle_external_hagl(packet);
         return MAV_RESULT_ACCEPTED;
 #endif
+
+    case 31000:
+        plane.adelphi.trigger_emergency();
+        return MAV_RESULT_ACCEPTED;
         
     default:
         return GCS_MAVLINK::handle_command_int_packet(packet, msg);
