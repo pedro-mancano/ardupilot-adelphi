@@ -64,14 +64,21 @@ enum class PlanadorInterfaceFields : uint32_t
 struct __attribute__((packed)) PlanadorInterfacePacket
 {
   uint16_t header = 0xAA55;
-  uint8_t id = 0;
+  uint8_t id = 0x69;
   PlanadorInterfaceFields pilot_called_release = PlanadorInterfaceFields::NO;
   PlanadorInterfaceFields ardupilot_release_confirmation = PlanadorInterfaceFields::NO;
   uint32_t ardupilot_millis = 0;
-  uint32_t checksum;
+  uint8_t flight_mode = 0;          // Mode number (0=MANUAL, 2=STABILIZE, 5=FBWA, 10=AUTO)
+  uint8_t adelphi_status = 0;       // 0=UNINIT, 1=ATTACHED, 2=DEPLOYED, 3=LANDED
+  uint8_t is_armed = 0;             // 1=ARMED, 0=DISARMED
+  uint8_t gps_fix = 0;              // GPS Status enum
+  uint8_t satellites = 0;           // Sat count
+  int32_t altitude_cm = 0;          // Relative altitude in cm
+  uint16_t battery_voltage_mv = 0;  // Battery voltage in millivolts
+  uint32_t checksum = 0;
 };
 
-static_assert(sizeof(PlanadorInterfacePacket) == 19, "PlanadorInterfacePacket size is not 19 bytes");
+static_assert(sizeof(PlanadorInterfacePacket) == 30, "PlanadorInterfacePacket size is not 30 bytes");
 
 
 Vector2D latLonToCartesian(float lat, float lon, float lat_ref, float lon_ref);

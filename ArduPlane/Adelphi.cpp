@@ -68,25 +68,80 @@ void Adelphi::init()
   }
 }
 
-// Chamado em em Plane::scheduler_tasks (Plane.cpp) - 10Hz
+// Chamado em Plane::scheduler_tasks (Plane.cpp) - 10Hz
 void Adelphi::update()
 {
   this->on_emergency_actived();
 
+  // 1. Leitura imediata do buffer RX da UART antes de processar a maquina de estados
   if (release_esp32_uart != nullptr) {
-      release_esp32_timer();
+    release_esp32_read();
   }
 
-  // Se não tiver fixado o GPS, aguarda
+  // Timeout de recepcao UART do ESP32 (1500 ms)
+  if (AP_HAL::millis() - this->release_esp32_last_read_t > 1500)
+  {
+    this->release_esp32_data.pilot_called_release = PlanadorInterfaceFields::NO;
+  }
+
+  // 2. Monitoramento continuo de armamento (executa SEMPRE, mesmo antes do GPS 3D Fix)
+  const bool is_armed = plane.arming.is_armed();
+  static bool was_armed = false;
+
+  // Se o planador estiver DESARMADO em qualquer momento:
+  // 1. A confirmacao de liberacao do FC e a flag de requisicao sao imediatamente limpas (NO)
+  // 2. Qualquer processo de liberacao/preparacao em andamento e abortado e timers zerados
+  // 3. Se estava na janela de preparacao em FBWA, reverte o modo para MANUAL
+  // 4. Status retorna para ATTACHED (se GPS fixado) ou UNINITIALIZED
+  if (!is_armed)
+  {
+    if (this->prepared_to_release)
+    {
+      GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Alijamento abortado imediatamente: Planador DESARMADO!");
+      if (plane.get_mode() == plane.mode_fbwa.mode_number())
+      {
+        plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
+      }
+    }
+
+    if (this->release_esp32_data.ardupilot_release_confirmation != PlanadorInterfaceFields::NO)
+    {
+      this->release_esp32_data.ardupilot_release_confirmation = PlanadorInterfaceFields::NO;
+      this->should_write_to_release_esp32 = 5;
+    }
+
+    this->release_esp32_data.pilot_called_release = PlanadorInterfaceFields::NO;
+    this->release_esp32_data.is_armed = 0;
+    this->prepared_to_release = false;
+    this->prepared_to_release_time = 0;
+    this->hasLanded = false;
+
+    if (AP::adelphi().get_status() == STATUS::DEPLOYED || AP::adelphi().get_status() == STATUS::LANDED)
+    {
+      AP::adelphi().set_status(this->has_fixed_once ? STATUS::ATTACHED : STATUS::UNINITIALIZED);
+    }
+  }
+
+  if (was_armed && !is_armed)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Desarme detectado. Resetando maquina de estados e propagando via UART.");
+    this->should_write_to_release_esp32 = 5;
+  }
+  was_armed = is_armed;
+
+  // Se não tiver fixado o GPS, aguarda (mas mantém o envio da telemetria/armamento na UART)
   if (!this->has_fixed_once && AP::gps().status() < AP_GPS::GPS_Status::GPS_OK_FIX_3D)
   {
-    // A cada 30 ciclos de 10Hz, envia uma mensagem para o GCS (0.33 Hz)
     if (this->waiting_gps_fix % 30 == 0)
     {
       GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Aguardando GPS fixar...");
       this->waiting_gps_fix = 0;
     }
     this->waiting_gps_fix++;
+
+    if (release_esp32_uart != nullptr) {
+      release_esp32_timer();
+    }
     return;
   }
 
@@ -102,7 +157,25 @@ void Adelphi::update()
     AP::adelphi().set_status(STATUS::ATTACHED);
   }
 
-  if (this->prepared_to_release && plane.get_mode() == plane.mode_stabilize.mode_number() && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO && AP_HAL::millis() - this->prepared_to_release_time > 2000)
+  // Se estiver preparando para alijar, mas o piloto cancelou (ou link UART caiu), aborta imediatamente
+  if (this->prepared_to_release && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO)
+  {
+    if (!is_armed || this->release_esp32_data.pilot_called_release != PlanadorInterfaceFields::YES)
+    {
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Alijamento abortado: solicitacao desfeita ou desarmado");
+      this->prepared_to_release = false;
+      this->prepared_to_release_time = 0;
+      if (plane.get_mode() == plane.mode_fbwa.mode_number())
+      {
+        plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
+      }
+      this->should_write_to_release_esp32 = 5;
+    }
+  }
+
+  // Liberacao efetiva: requer OBRIGATORIAMENTE estar ARMADO, preparado, modo FBWA/STABILIZE,
+  // confirmacao pendente (NO) e 2000 ms decorridos
+  if (is_armed && this->prepared_to_release && (plane.get_mode() == plane.mode_fbwa.mode_number() || plane.get_mode() == plane.mode_stabilize.mode_number()) && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO && AP_HAL::millis() - this->prepared_to_release_time > 2000)
   {
     if (this->release_esp32_data.pilot_called_release == PlanadorInterfaceFields::YES)
     {
@@ -112,7 +185,7 @@ void Adelphi::update()
       AP_Mission::Mission_Command land;
       AP_Mission::Mission_Command flare;
 
-      if (mission->num_commands() > 0)
+      if (mission != nullptr && mission->num_commands() > 0)
       {
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao");
         mission->read_cmd_from_storage(0, home_cmd);
@@ -124,7 +197,7 @@ void Adelphi::update()
 
         const Location loc = AP::gps().location();
 
-        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, AP::ahrs().get_yaw(), 0.5, 0.05, 5, 5, 5000);
+        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, degrees(AP::ahrs().get_yaw()), 0.5, 0.05, 5, 5, 5000);
 
         if (!points.empty())
         {
@@ -165,22 +238,29 @@ void Adelphi::update()
     }
   }
 
-  // Considerar cancelamento o cancelamento para mudar o status se preciso.
-  if (this->release_esp32_data.pilot_called_release == PlanadorInterfaceFields::YES && !this->prepared_to_release)
+  // Inicio da preparacao: OBRIGATORIAMENTE requer estar ARMADO
+  if (is_armed && this->release_esp32_data.pilot_called_release == PlanadorInterfaceFields::YES && !this->prepared_to_release && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO)
   {
     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Preparando alijamento...");
     this->prepared_to_release = true;
     this->prepared_to_release_time = AP_HAL::millis();
-    // change mode to STABILIZE
-    plane.set_mode(plane.mode_stabilize, ModeReason::SCRIPTING);
+    // change mode to FBWA
+    plane.set_mode(plane.mode_fbwa, ModeReason::SCRIPTING);
+    this->should_write_to_release_esp32 = 5;
   }
 
-  // Se passar muito tempo depois de preparado e o modo voltar para o manual, significa que o planador pouso externamente
-  if (this->prepared_to_release && plane.get_mode() == plane.mode_manual.mode_number() && AP_HAL::millis() - this->prepared_to_release_time > 5000 && !this->hasLanded)
+  // Se passar muito tempo depois de preparado e o modo voltar para o manual, significa que o planador pousou externamente
+  if (is_armed && this->prepared_to_release && plane.get_mode() == plane.mode_manual.mode_number() && AP_HAL::millis() - this->prepared_to_release_time > 5000 && !this->hasLanded)
   {
     GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
     AP::adelphi().set_status(STATUS::LANDED);
     this->hasLanded = true;
+    this->should_write_to_release_esp32 = 5;
+  }
+
+  // 3. Transmissao imediata para o ESP32 apos todas as atualizacoes de estado do ciclo
+  if (release_esp32_uart != nullptr) {
+    release_esp32_timer();
   }
 }
 
@@ -188,18 +268,43 @@ void Adelphi::on_land()
 {
   GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "[Adelphi] Pouso concluido");
   AP::adelphi().set_status(STATUS::LANDED);
+  this->release_esp32_data.ardupilot_release_confirmation = PlanadorInterfaceFields::NO;
+  this->release_esp32_data.pilot_called_release = PlanadorInterfaceFields::NO;
+  this->prepared_to_release = false;
+  this->prepared_to_release_time = 0;
+  this->hasLanded = true;
+  this->should_write_to_release_esp32 = 5;
 }
 
 #pragma region ESP32 UART Communication
 void Adelphi::release_esp32_timer()
 {
   static uint32_t last_send = 0;
-  if (release_esp32_uart != nullptr && (should_write_to_release_esp32 > 0 || AP_HAL::millis() - last_send > 1000))
+  if (release_esp32_uart != nullptr && (should_write_to_release_esp32 > 0 || AP_HAL::millis() - last_send >= 100))
   {
     if (should_write_to_release_esp32 > 0) should_write_to_release_esp32--;
     last_send = AP_HAL::millis();
     
+    const bool is_armed = plane.arming.is_armed();
+    if (!is_armed) {
+      release_esp32_data.ardupilot_release_confirmation = PlanadorInterfaceFields::NO;
+      release_esp32_data.pilot_called_release = PlanadorInterfaceFields::NO;
+    }
+
     release_esp32_data.ardupilot_millis = AP_HAL::millis();
+    release_esp32_data.flight_mode = plane.get_mode();
+    release_esp32_data.adelphi_status = (uint8_t)AP::adelphi().get_status();
+    release_esp32_data.is_armed = is_armed ? 1 : 0;
+    release_esp32_data.gps_fix = (uint8_t)AP::gps().status();
+    release_esp32_data.satellites = AP::gps().num_sats();
+    release_esp32_data.altitude_cm = (int32_t)(plane.relative_altitude * 100.0f);
+
+    if (AP::battery().num_instances() > 0) {
+      release_esp32_data.battery_voltage_mv = (uint16_t)(AP::battery().voltage(0) * 1000.0f);
+    } else {
+      release_esp32_data.battery_voltage_mv = 0;
+    }
+
     uint8_t checksum = calcChecksum((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket) - sizeof(uint32_t));
     release_esp32_data.checksum = checksum;
     release_esp32_uart->write((uint8_t *)(&release_esp32_data), sizeof(PlanadorInterfacePacket));
@@ -224,7 +329,12 @@ bool Adelphi::release_esp32_read()
           buf_idx = 0;
       }
       else if (buf_idx == 2 && buf[1] != 0xAA) {
-          buf_idx = 0;
+          buf_idx = (b == 0x55) ? 1 : 0;
+          if (buf_idx == 1) buf[0] = 0x55;
+      }
+      else if (buf_idx == 3 && buf[2] != 0x69) {
+          buf_idx = (b == 0x55) ? 1 : 0;
+          if (buf_idx == 1) buf[0] = 0x55;
       }
       else if (buf_idx == sizeof(PlanadorInterfacePacket)) {
           memcpy(&release_esp32_data_temp, buf, sizeof(PlanadorInterfacePacket));
@@ -235,7 +345,9 @@ bool Adelphi::release_esp32_read()
 
           if (release_esp32_data_temp.id == 0x69 && received_checksum == calculated_checksum)
           {
-              release_esp32_data.pilot_called_release = release_esp32_data_temp.pilot_called_release;
+              release_esp32_data.pilot_called_release = plane.arming.is_armed()
+                  ? release_esp32_data_temp.pilot_called_release
+                  : PlanadorInterfaceFields::NO;
               release_esp32_last_read_t = AP_HAL::millis();
               got_packet = true;
           }
@@ -320,6 +432,10 @@ Vector2D cartesianToLatLon(float x, float y, float lat_ref, float lon_ref)
 }
 
 // Convert heading (in degrees) to a 2D directional vector
+// NOTA [CRÍTICA-02]: Esta função espera `heading` em GRAUS (converte para radianos multiplicando por M_PI / 180.0),
+// porém na chamada de `calculate(...)` em Adelphi::update() está sendo passado `AP::ahrs().get_yaw()`, que retorna
+// o yaw em RADIANOS ([0, 2*PI) / [-PI, PI]). Para usar a proa real em graus, deve-se passar `degrees(AP::ahrs().get_yaw())`
+// ou remover a conversão `* M_PI / 180.0` abaixo.
 Vector2D headingToVector(float heading)
 {
   float heading_rad = heading * M_PI / 180.0;
@@ -329,6 +445,7 @@ Vector2D headingToVector(float heading)
 }
 
 // Calculate path points towards the target point
+// NOTA [CRÍTICA-02]: `initial_heading` é repassado diretamente para `headingToVector(initial_heading)`.
 std::vector<Vector2D> calculate(float target_lat, float target_lon, float current_lat, float current_lon, float initial_heading, float speed, float steer_factor, float max_bank, float max_dist, int max_iterations)
 {
   max_bank = max_bank * M_PI / 180.0;
