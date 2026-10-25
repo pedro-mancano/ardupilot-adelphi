@@ -8,6 +8,7 @@
 #include <AP_HAL/I2CDevice.h>
 #include <AP_Math/AP_Math.h>
 #include <vector>
+#include <AP_Param/AP_Param.h>
 
 #include <stdio.h>
 
@@ -113,6 +114,11 @@ private:
   PlanadorInterfacePacket release_esp32_data_temp = {};
 
 public:
+  static const struct AP_Param::GroupInfo var_info[];
+
+  AP_Float glide_slope; // ADELPHI_GLIDES: Rampa de planeio final (L/D no solo)
+  AP_Float r_factor;    // ADELPHI_RFACTOR: % da altitude de soltura reservada para rampa final
+
   Adelphi();
   ~Adelphi();
   void init();

@@ -2,8 +2,30 @@
 #include "Plane.h"
 
 // Construtor
+const AP_Param::GroupInfo Adelphi::var_info[] = {
+
+    // @Param: GLIDES
+    // @DisplayName: Adelphi Glide Slope Ratio (L/D)
+    // @Description: Rampa de planeio final (razao L/D de solo) para dimensionamento do flare/aproximacao
+    // @Range: 1.0 10.0
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("GLIDES", 1, Adelphi, glide_slope, 3.8f),
+
+    // @Param: RFACTOR
+    // @DisplayName: Adelphi Flare Altitude Ratio Factor
+    // @Description: Fracao da altitude atual de soltura reservada para a rampa final de flare (ex: 0.35 = 35%)
+    // @Range: 0.10 0.80
+    // @Increment: 0.01
+    // @User: Standard
+    AP_GROUPINFO("RFACTOR", 2, Adelphi, r_factor, 0.35f),
+
+    AP_GROUPEND
+};
+
 Adelphi::Adelphi()
 {
+  AP_Param::setup_object_defaults(this, var_info);
   release_esp32_data.id = 0x69;
 }
 
@@ -173,56 +195,121 @@ void Adelphi::update()
     }
   }
 
+  // Inicio da preparacao: OBRIGATORIAMENTE requer estar ARMADO
+  // O recalculo da trajetoria e antecipado para este exato instante (quando entra em FBWA),
+  // projetando a posicao futura de soltura para 2.0s a frente somando a velocidade de solo (groundspeed_vector).
+  if (is_armed && this->release_esp32_data.pilot_called_release == PlanadorInterfaceFields::YES && !this->prepared_to_release && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO)
+  {
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Preparando alijamento (FBWA)...");
+    this->prepared_to_release = true;
+    this->prepared_to_release_time = AP_HAL::millis();
+    // change mode to FBWA
+    plane.set_mode(plane.mode_fbwa, ModeReason::SCRIPTING);
+    this->should_write_to_release_esp32 = 5;
+
+    auto mission = AP::mission();
+    AP_Mission::Mission_Command home_cmd;
+    AP_Mission::Mission_Command land;
+    AP_Mission::Mission_Command flare = {};
+
+    if (mission != nullptr && mission->num_commands() > 0)
+    {
+      GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao (V2 Dinamico em FBWA)");
+      mission->read_cmd_from_storage(0, home_cmd);
+      mission->read_cmd_from_storage(mission->num_commands() - 1, land);
+
+      // 1. Posicao e altitude atuais
+      Location predicted_loc;
+      if (!AP::ahrs().get_location(predicted_loc)) {
+        predicted_loc = AP::gps().location();
+      }
+
+      // 2. Extrapolar posicao para 2.0 segundos a frente (momento da soltura) usando o vetor de velocidade de solo
+      Vector2f ground_vel = AP::ahrs().groundspeed_vector();
+      if (ground_vel.is_zero() && AP::gps().status() >= AP_GPS::GPS_Status::GPS_OK_FIX_3D) {
+        const Vector3f &gps_vel = AP::gps().velocity();
+        ground_vel.x = gps_vel.x;
+        ground_vel.y = gps_vel.y;
+      }
+
+      const float PREPARATION_TIME_SEC = 2.0f;
+      float ofs_north = ground_vel.x * PREPARATION_TIME_SEC;
+      float ofs_east = ground_vel.y * PREPARATION_TIME_SEC;
+      predicted_loc.offset(ofs_north, ofs_east);
+
+      // Altura atual acima do Home (em metros)
+      float current_alt_m = 50.0f;
+      float pos_d;
+      AP::ahrs().get_relative_position_D_home(pos_d);
+      current_alt_m = -pos_d;
+      if (current_alt_m <= 0.0f) {
+        current_alt_m = plane.relative_altitude;
+      }
+      if (current_alt_m <= 0.0f) {
+        current_alt_m = 50.0f;
+      }
+
+      // 3. Distancia estimada da soltura futura (+2s) ate o ponto de pouso
+      float total_dist_m = predicted_loc.get_distance(land.content.location);
+
+      // 4. Dimensionamento dinamico da rampa final baseado no L/D_solo e % de altitude configurados via parametros
+      float r_factor_val = constrain_float(this->r_factor.get(), 0.10f, 0.80f);
+      float flare_wp_alt_m = constrain_float(current_alt_m * r_factor_val, 15.0f, 30.0f);
+
+      const float GLIDE_RATIO_FINAL = (this->glide_slope.get() > 0.5f) ? this->glide_slope.get() : 3.8f;
+      float approach_dist_m = flare_wp_alt_m * GLIDE_RATIO_FINAL;
+
+      // Garante que o WP1 nunca fique mais longe que 70% da distancia total da soltura estimada
+      if (approach_dist_m > total_dist_m * 0.70f) {
+        approach_dist_m = total_dist_m * 0.70f;
+        flare_wp_alt_m = approach_dist_m / GLIDE_RATIO_FINAL;
+      }
+
+      Vector2D land_point = {((float)land.content.location.lat) / 1.0e7f, ((float)land.content.location.lng) / 1.0e7f};
+      Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
+
+      auto points = calculate(
+          land_point.x, land_point.y,
+          ((float)predicted_loc.lat) / 1.0e7f, ((float)predicted_loc.lng) / 1.0e7f,
+          degrees(AP::ahrs().get_yaw()),
+          0.5f, 0.01f, 5.0f, 5.0f, 5000
+      );
+
+      if (!points.empty())
+      {
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Flare previsto (+2s): dist=%.1fm alt=%.1fm L/D=%.1f",
+                      (double)approach_dist_m, (double)flare_wp_alt_m, (double)GLIDE_RATIO_FINAL);
+
+        auto flare_point_xy = findApproachPoint(land_point_xy, points, approach_dist_m);
+        auto flare_point = cartesianToLatLon(flare_point_xy.x, flare_point_xy.y, land_point.x, land_point.y);
+
+        mission->clear();
+
+        mission->add_cmd(home_cmd);
+
+        flare.id = MAV_CMD_NAV_WAYPOINT;
+        flare.p1 = 0;
+        flare.content.location = Location{
+            (int32_t)(flare_point.x * 1e7f),
+            (int32_t)(flare_point.y * 1e7f),
+            (int32_t)(flare_wp_alt_m * 100.0f), // Convertido para cm
+            Location::AltFrame::ABOVE_HOME};
+
+        mission->add_cmd(flare);
+        mission->add_cmd(land);
+
+        // Inicia diretamente no comando 1 (WP1 / flare)
+        mission->set_current_cmd(1);
+      }
+    }
+  }
+
   // Liberacao efetiva: requer OBRIGATORIAMENTE estar ARMADO, preparado, modo FBWA/STABILIZE,
-  // confirmacao pendente (NO) e 2000 ms decorridos
+  // confirmacao pendente (NO) e 2000 ms decorridos desde a preparacao
   if (is_armed && this->prepared_to_release && (plane.get_mode() == plane.mode_fbwa.mode_number() || plane.get_mode() == plane.mode_stabilize.mode_number()) && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO && AP_HAL::millis() - this->prepared_to_release_time > 2000)
   {
     if (this->release_esp32_data.pilot_called_release == PlanadorInterfaceFields::YES)
     {
-      auto mission = AP::mission();
-
-      AP_Mission::Mission_Command home_cmd;
-      AP_Mission::Mission_Command land;
-      AP_Mission::Mission_Command flare;
-
-      if (mission != nullptr && mission->num_commands() > 0)
-      {
-        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Editando missao");
-        mission->read_cmd_from_storage(0, home_cmd);
-        mission->read_cmd_from_storage(mission->num_commands() - 1, land);
-
-        Vector2D land_point = {((float)land.content.location.lat) / 1.0e7f, ((float)land.content.location.lng) / 1.0e7f};
-
-        Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
-
-        const Location loc = AP::gps().location();
-
-        auto points = calculate(land_point.x, land_point.y, ((float)loc.lat) / 1.0e7f, ((float)loc.lng) / 1.0e7f, degrees(AP::ahrs().get_yaw()), 0.5, 0.05, 5, 5, 5000);
-
-        if (!points.empty())
-        {
-          GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Calculando flare");
-          auto flare_point_xy = findApproachPoint(land_point_xy, points, 125);
-
-          auto flare_point = cartesianToLatLon(flare_point_xy.x, flare_point_xy.y, land_point.x, land_point.y);
-
-          mission->clear();
-
-          mission->add_cmd(home_cmd);
-          flare.id = MAV_CMD_NAV_WAYPOINT;
-          flare.p1 = 0;
-          flare.content.location = Location{
-              (int)(flare_point.x * 1e7),
-              (int)(flare_point.y * 1e7),
-              2500,
-              Location::AltFrame::ABOVE_HOME};
-          mission->add_cmd(flare);
-          mission->add_cmd(land);
-
-          mission->set_current_cmd(0);
-        }
-      }
-
       this->release_esp32_data.ardupilot_release_confirmation = PlanadorInterfaceFields::YES;
       this->should_write_to_release_esp32 += 5;
       // change mode to AUTO
@@ -236,17 +323,6 @@ void Adelphi::update()
       this->prepared_to_release = false;
       plane.set_mode(plane.mode_manual, ModeReason::SCRIPTING);
     }
-  }
-
-  // Inicio da preparacao: OBRIGATORIAMENTE requer estar ARMADO
-  if (is_armed && this->release_esp32_data.pilot_called_release == PlanadorInterfaceFields::YES && !this->prepared_to_release && this->release_esp32_data.ardupilot_release_confirmation == PlanadorInterfaceFields::NO)
-  {
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Preparando alijamento...");
-    this->prepared_to_release = true;
-    this->prepared_to_release_time = AP_HAL::millis();
-    // change mode to FBWA
-    plane.set_mode(plane.mode_fbwa, ModeReason::SCRIPTING);
-    this->should_write_to_release_esp32 = 5;
   }
 
   // Se passar muito tempo depois de preparado e o modo voltar para o manual, significa que o planador pousou externamente

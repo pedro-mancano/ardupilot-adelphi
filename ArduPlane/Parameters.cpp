@@ -918,7 +918,8 @@ const AP_Param::Info Plane::var_info[] = {
     // Airspeed was here
 
     // @Group: ADELPHI_
-    // @Path: ../libraries/AC_AdelphiLinker/AdelphiLinker.cpp
+    // @Path: Adelphi.cpp
+    GOBJECT(adelphi,                "ADELPHI_", Adelphi),
 
     // @Group: NAVL1_
     // @Path: ../libraries/AP_L1_Control/AP_L1_Control.cpp

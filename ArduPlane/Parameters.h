@@ -188,7 +188,7 @@ public:
         k_param_imu = 130,    // unused
         k_param_altitude_mix, // deprecated
 
-        // k_param_adelphi_linker was here
+        k_param_adelphi = 132,
 
         k_param_compass_enabled_deprecated,
         k_param_compass,
