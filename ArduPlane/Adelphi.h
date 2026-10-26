@@ -8,29 +8,33 @@
 #include <AP_HAL/I2CDevice.h>
 #include <AP_Math/AP_Math.h>
 #include <vector>
+#include <cmath>
 #include <AP_Param/AP_Param.h>
 
 #include <stdio.h>
 
 constexpr float RAD_TO_DEGf = 180.0f / M_PI;
 
-const float EARTH_RADIUS = 6371000.0;
+const double EARTH_RADIUS = 6371000.0;
 
 struct Vector2D
 {
-  float x;
-  float y;
+  double x;
+  double y;
 
   // Vector magnitude
-  float magnitude() const
+  double magnitude() const
   {
-    return safe_sqrt(x * x + y * y);
+    return sqrt(x * x + y * y);
   }
 
   // Normalize the vector
   Vector2D normalized() const
   {
-    float mag = magnitude();
+    double mag = magnitude();
+    if (mag <= 1.0e-12) {
+      return {0.0, 0.0};
+    }
     return {x / mag, y / mag};
   }
 
@@ -45,12 +49,12 @@ struct Vector2D
     return {x - other.x, y - other.y};
   }
 
-  Vector2D operator*(float scalar) const
+  Vector2D operator*(double scalar) const
   {
     return {x * scalar, y * scalar};
   }
 
-  Vector2D operator/(float scalar) const
+  Vector2D operator/(double scalar) const
   {
     return {x / scalar, y / scalar};
   }
@@ -82,11 +86,11 @@ struct __attribute__((packed)) PlanadorInterfacePacket
 static_assert(sizeof(PlanadorInterfacePacket) == 30, "PlanadorInterfacePacket size is not 30 bytes");
 
 
-Vector2D latLonToCartesian(float lat, float lon, float lat_ref, float lon_ref);
-Vector2D cartesianToLatLon(float x, float y, float lat_ref, float lon_ref);
-Vector2D headingToVector(float heading);
-std::vector<Vector2D> calculate(float target_lat, float target_lon, float current_lat, float current_lon, float initial_heading, float speed, float steer_factor, float max_bank, float max_dist, int max_iterations = 1000);
-Vector2D findApproachPoint(const Vector2D &target_point, const std::vector<Vector2D> &points, float approach_distance_from_target);
+Vector2D latLonToCartesian(double lat, double lon, double lat_ref, double lon_ref);
+Vector2D cartesianToLatLon(double x, double y, double lat_ref, double lon_ref);
+Vector2D headingToVector(double heading);
+std::vector<Vector2D> calculate(double target_lat, double target_lon, double current_lat, double current_lon, double initial_heading, double speed, double steer_factor, double max_bank, double max_dist, int max_iterations = 1000);
+Vector2D findApproachPoint(const Vector2D &target_point, const std::vector<Vector2D> &points, double approach_distance_from_target);
 
 class Adelphi
 {

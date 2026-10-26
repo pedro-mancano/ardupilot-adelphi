@@ -265,14 +265,19 @@ void Adelphi::update()
         flare_wp_alt_m = approach_dist_m / GLIDE_RATIO_FINAL;
       }
 
-      Vector2D land_point = {((float)land.content.location.lat) / 1.0e7f, ((float)land.content.location.lng) / 1.0e7f};
+      const double land_lat_deg = ((double)land.content.location.lat) * 1.0e-7;
+      const double land_lng_deg = ((double)land.content.location.lng) * 1.0e-7;
+      const double pred_lat_deg = ((double)predicted_loc.lat) * 1.0e-7;
+      const double pred_lng_deg = ((double)predicted_loc.lng) * 1.0e-7;
+
+      Vector2D land_point = {land_lat_deg, land_lng_deg};
       Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
 
       auto points = calculate(
           land_point.x, land_point.y,
-          ((float)predicted_loc.lat) / 1.0e7f, ((float)predicted_loc.lng) / 1.0e7f,
-          degrees(AP::ahrs().get_yaw()),
-          0.5f, 0.01f, 5.0f, 5.0f, 5000
+          pred_lat_deg, pred_lng_deg,
+          degrees((double)AP::ahrs().get_yaw()),
+          0.5, 0.01, 5.0, 5.0, 5000
       );
 
       if (!points.empty())
@@ -280,7 +285,7 @@ void Adelphi::update()
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "[Adelphi] Flare previsto (+2s): dist=%.1fm alt=%.1fm L/D=%.1f",
                       (double)approach_dist_m, (double)flare_wp_alt_m, (double)GLIDE_RATIO_FINAL);
 
-        auto flare_point_xy = findApproachPoint(land_point_xy, points, approach_dist_m);
+        auto flare_point_xy = findApproachPoint(land_point_xy, points, (double)approach_dist_m);
         auto flare_point = cartesianToLatLon(flare_point_xy.x, flare_point_xy.y, land_point.x, land_point.y);
 
         mission->clear();
@@ -290,9 +295,9 @@ void Adelphi::update()
         flare.id = MAV_CMD_NAV_WAYPOINT;
         flare.p1 = 0;
         flare.content.location = Location{
-            (int32_t)(flare_point.x * 1e7f),
-            (int32_t)(flare_point.y * 1e7f),
-            (int32_t)(flare_wp_alt_m * 100.0f), // Convertido para cm
+            (int32_t)round(flare_point.x * 1.0e7),
+            (int32_t)round(flare_point.y * 1.0e7),
+            (int32_t)round((double)flare_wp_alt_m * 100.0), // Convertido para cm
             Location::AltFrame::ABOVE_HOME};
 
         mission->add_cmd(flare);
@@ -474,57 +479,52 @@ uint8_t calcChecksum(uint8_t *buffer, uint8_t len)
 #pragma endregion ESP32 UART Communication
 
 #pragma region Path Calculation Functions
-// Convert latitude/longitude to Cartesian coordinates relative to a reference point
-Vector2D latLonToCartesian(float lat, float lon, float lat_ref, float lon_ref)
+// Convert latitude/longitude to Cartesian coordinates relative to a reference point (Double Precision)
+Vector2D latLonToCartesian(double lat, double lon, double lat_ref, double lon_ref)
 {
-  // Convert degrees to radians
-  float lat_rad = lat * M_PI / 180.0;
-  float lon_rad = lon * M_PI / 180.0;
-  float lat_ref_rad = lat_ref * M_PI / 180.0;
-  float lon_ref_rad = lon_ref * M_PI / 180.0;
+  // Convert degrees to radians in full double precision
+  const double lat_rad = lat * (M_PI / 180.0);
+  const double lon_rad = lon * (M_PI / 180.0);
+  const double lat_ref_rad = lat_ref * (M_PI / 180.0);
+  const double lon_ref_rad = lon_ref * (M_PI / 180.0);
 
-  // Calculate x and y in meters
-  float x = EARTH_RADIUS * (lon_rad - lon_ref_rad) * cosf((float)((lat_rad + lat_ref_rad) / 2.0f));
-  float y = EARTH_RADIUS * (lat_rad - lat_ref_rad);
+  // Calculate x and y in meters using double precision cos()
+  const double x = EARTH_RADIUS * (lon_rad - lon_ref_rad) * cos((lat_rad + lat_ref_rad) * 0.5);
+  const double y = EARTH_RADIUS * (lat_rad - lat_ref_rad);
 
   return {x, y};
 }
 
-// Convert Cartesian coordinates to latitude/longitude relative to a reference point
-Vector2D cartesianToLatLon(float x, float y, float lat_ref, float lon_ref)
+// Convert Cartesian coordinates to latitude/longitude relative to a reference point (Double Precision)
+Vector2D cartesianToLatLon(double x, double y, double lat_ref, double lon_ref)
 {
-  float lat_ref_rad = lat_ref * M_PI / 180.0;
-  float lon_ref_rad = lon_ref * M_PI / 180.0;
+  const double lat_ref_rad = lat_ref * (M_PI / 180.0);
+  const double lon_ref_rad = lon_ref * (M_PI / 180.0);
 
   // Calculate latitude and longitude in radians
-  float lat_rad = lat_ref_rad + (y / EARTH_RADIUS);
-  float lon_rad = lon_ref_rad + (x / (EARTH_RADIUS * cosf((float)(lat_rad + lat_ref_rad) / 2.0f)));
+  const double lat_rad = lat_ref_rad + (y / EARTH_RADIUS);
+  const double lon_rad = lon_ref_rad + (x / (EARTH_RADIUS * cos((lat_rad + lat_ref_rad) * 0.5)));
 
   // Convert radians back to degrees
-  float lat = lat_rad * 180.0 / M_PI;
-  float lon = lon_rad * 180.0 / M_PI;
+  const double lat = lat_rad * (180.0 / M_PI);
+  const double lon = lon_rad * (180.0 / M_PI);
 
   return {lat, lon};
 }
 
-// Convert heading (in degrees) to a 2D directional vector
-// NOTA [CRÍTICA-02]: Esta função espera `heading` em GRAUS (converte para radianos multiplicando por M_PI / 180.0),
-// porém na chamada de `calculate(...)` em Adelphi::update() está sendo passado `AP::ahrs().get_yaw()`, que retorna
-// o yaw em RADIANOS ([0, 2*PI) / [-PI, PI]). Para usar a proa real em graus, deve-se passar `degrees(AP::ahrs().get_yaw())`
-// ou remover a conversão `* M_PI / 180.0` abaixo.
-Vector2D headingToVector(float heading)
+// Convert heading (in degrees) to a 2D directional vector (Double Precision)
+Vector2D headingToVector(double heading)
 {
-  float heading_rad = heading * M_PI / 180.0;
-  float x = sinf(heading_rad);
-  float y = cosf(heading_rad);
+  const double heading_rad = heading * (M_PI / 180.0);
+  const double x = sin(heading_rad);
+  const double y = cos(heading_rad);
   return {x, y};
 }
 
-// Calculate path points towards the target point
-// NOTA [CRÍTICA-02]: `initial_heading` é repassado diretamente para `headingToVector(initial_heading)`.
-std::vector<Vector2D> calculate(float target_lat, float target_lon, float current_lat, float current_lon, float initial_heading, float speed, float steer_factor, float max_bank, float max_dist, int max_iterations)
+// Calculate path points towards the target point (Double Precision)
+std::vector<Vector2D> calculate(double target_lat, double target_lon, double current_lat, double current_lon, double initial_heading, double speed, double steer_factor, double max_bank, double max_dist, int max_iterations)
 {
-  max_bank = max_bank * M_PI / 180.0;
+  max_bank = max_bank * (M_PI / 180.0);
 
   // Convert target and current latitude/longitude to Cartesian coordinates
   Vector2D target_point = latLonToCartesian(target_lat, target_lon, target_lat, target_lon);
@@ -572,14 +572,14 @@ std::vector<Vector2D> calculate(float target_lat, float target_lon, float curren
   }
 }
 
-Vector2D findApproachPoint(const Vector2D &target_point, const std::vector<Vector2D> &points, float approach_distance_from_target)
+Vector2D findApproachPoint(const Vector2D &target_point, const std::vector<Vector2D> &points, double approach_distance_from_target)
 {
   Vector2D approach_point = target_point;
 
   for (const auto &point : points)
   {
-    float dist_to_target_new = (point - target_point).magnitude();
-    float dist_to_target_cur = (approach_point - target_point).magnitude();
+    const double dist_to_target_new = (point - target_point).magnitude();
+    const double dist_to_target_cur = (approach_point - target_point).magnitude();
 
     if (dist_to_target_new < approach_distance_from_target && dist_to_target_new > dist_to_target_cur)
     {
