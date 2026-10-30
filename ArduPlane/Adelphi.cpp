@@ -20,6 +20,14 @@ const AP_Param::GroupInfo Adelphi::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("RFACTOR", 2, Adelphi, r_factor, 0.35f),
 
+    // @Param: FLIGHTID
+    // @DisplayName: Adelphi Flight ID (DAS)
+    // @Description: Identificador numerico unico da sessao de voo para o DAS (0 a 32767)
+    // @Range: 0 32767
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("FLIGHTID", 3, Adelphi, flight_id, 101),
+
     AP_GROUPEND
 };
 
@@ -277,7 +285,7 @@ void Adelphi::update()
           land_point.x, land_point.y,
           pred_lat_deg, pred_lng_deg,
           degrees((double)AP::ahrs().get_yaw()),
-          0.5, 0.01, 5.0, 5.0, 5000
+          0.5, 0.04, 5.0, 5.0, 5000
       );
 
       if (!points.empty())

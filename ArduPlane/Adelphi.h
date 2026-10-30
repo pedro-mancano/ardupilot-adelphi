@@ -122,6 +122,7 @@ public:
 
   AP_Float glide_slope; // ADELPHI_GLIDES: Rampa de planeio final (L/D no solo)
   AP_Float r_factor;    // ADELPHI_RFACTOR: % da altitude de soltura reservada para rampa final
+  AP_Int16 flight_id;   // ADELPHI_FLIGHTID: Identificador unico da sessao de voo para o DAS (0 a 32767)
 
   Adelphi();
   ~Adelphi();
