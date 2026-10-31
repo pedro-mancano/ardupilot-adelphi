@@ -61,14 +61,10 @@ bool AP_Landing::type_slope_verify_land(const Location &prev_WP_loc, Location &n
     // adjust final landing parameters
 
     // determine stage
+    // [Adelphi Spot-Landing Fix] Entra imediatamente na rampa ao cruzar o WP de approach,
+    // sem bloquear por restricoes de heading (<10 deg) ou crosstrack (<5m).
     if (type_slope_stage == SlopeStage::NORMAL) {
-        const bool heading_lined_up = abs(nav_controller->bearing_error_cd()) < 1000 && !nav_controller->data_is_stale();
-        const bool on_flight_line = fabsf(nav_controller->crosstrack_error()) < 5.0f && !nav_controller->data_is_stale();
-        const bool below_prev_WP = current_loc.alt < loc_alt_AMSL_cm(prev_WP_loc);
-        if ((mission.get_prev_nav_cmd_id() == MAV_CMD_NAV_LOITER_TO_ALT) ||
-            (wp_proportion >= 0 && heading_lined_up && on_flight_line) ||
-            (wp_proportion > 0.15f && heading_lined_up && below_prev_WP) ||
-            (wp_proportion > 0.5f)) {
+        if (wp_proportion >= -0.05f || mission.get_prev_nav_cmd_id() == MAV_CMD_NAV_LOITER_TO_ALT) {
             type_slope_stage = SlopeStage::APPROACH;
         }
     }
@@ -145,14 +141,22 @@ bool AP_Landing::type_slope_verify_land(const Location &prev_WP_loc, Location &n
     }
 
     /*
-      when landing we keep the L1 navigation waypoint 200m ahead. This
-      prevents sudden turns if we overshoot the landing point
+      [Adelphi Spot-Landing Fix] Homing direto na coordenada do ponto de toque (next_WP_loc).
+      Acima de 6m de distancia horizontal ao alvo, atualiza o vetor de referencia a partir
+      da posicao atual (current_loc) mirando 15m apos o alvo para forcar convergencia zero-crosstrack
+      em cima do ponto. Nos 6m finais, mantem o rumo estabilizado para o toque.
      */
     Location land_WP_loc = next_WP_loc;
-
-    int32_t land_bearing_cd = prev_WP_loc.get_bearing_to(next_WP_loc);
-    land_WP_loc.offset_bearing(land_bearing_cd * 0.01f, prev_WP_loc.get_distance(current_loc) + 200);
-    nav_controller->update_waypoint(prev_WP_loc, land_WP_loc);
+    const float dist_to_target = current_loc.get_distance(next_WP_loc);
+    if (dist_to_target > 6.0f) {
+        int32_t direct_bearing_cd = current_loc.get_bearing_to(next_WP_loc);
+        land_WP_loc.offset_bearing(direct_bearing_cd * 0.01f, 15.0f);
+        nav_controller->update_waypoint(current_loc, land_WP_loc);
+    } else {
+        int32_t land_bearing_cd = prev_WP_loc.get_bearing_to(next_WP_loc);
+        land_WP_loc.offset_bearing(land_bearing_cd * 0.01f, prev_WP_loc.get_distance(current_loc) + 50.0f);
+        nav_controller->update_waypoint(prev_WP_loc, land_WP_loc);
+    }
 
     // once landed and stationary, post some statistics
     // this is done before disarm_if_autoland_complete() so that it happens on the next loop after the disarm

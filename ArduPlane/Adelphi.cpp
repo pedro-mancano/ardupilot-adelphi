@@ -281,10 +281,19 @@ void Adelphi::update()
       Vector2D land_point = {land_lat_deg, land_lng_deg};
       Vector2D land_point_xy = latLonToCartesian(land_point.x, land_point.y, land_point.x, land_point.y);
 
+      // Usa o curso verdadeiro do vetor velocidade de solo (Norte, Leste) em vez do Yaw da bussola
+      double true_ground_course_deg = degrees((double)AP::ahrs().groundspeed_vector().angle());
+      if ( !ground_vel.is_zero() ) {
+        true_ground_course_deg = degrees(atan2((double)ground_vel.y, (double)ground_vel.x));
+      }
+      if (true_ground_course_deg < 0.0) {
+        true_ground_course_deg += 360.0;
+      }
+
       auto points = calculate(
           land_point.x, land_point.y,
           pred_lat_deg, pred_lng_deg,
-          degrees((double)AP::ahrs().get_yaw()),
+          true_ground_course_deg,
           0.5, 0.04, 5.0, 5.0, 5000
       );
 

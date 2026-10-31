@@ -241,19 +241,15 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     //Calculate groundspeed
     float groundSpeed = _groundspeed_vector.length();
 
-    // check if we are moving in the direction of the front of the vehicle
-    const bool moving_forwards = fabsf(wrap_PI(_groundspeed_vector.angle() - get_yaw())) < M_PI_2;
+    // [Adelphi Spot-Landing Fix] Em voo livre (groundSpeed > 1.5 m/s), o planador sempre se move para frente.
+    // Impede que erro de bussola ative !moving_forwards e trave groundSpeed em 0.1 m/s (NavRoll = 0.32 deg).
+    const bool moving_forwards = (groundSpeed > 1.5f) || (fabsf(wrap_PI(_groundspeed_vector.angle() - get_yaw())) < M_PI_2);
 
     if (groundSpeed < 0.1f || !moving_forwards) {
-        // use a small ground speed vector in the right direction,
-        // allowing us to use the compass heading at zero GPS velocity
         groundSpeed = 0.1f;
         _groundspeed_vector = Vector2f(cosf(get_yaw()), sinf(get_yaw())) * groundSpeed;
     }
 
-    // Calculate time varying control parameters
-    // Calculate the L1 length required for specified period
-    // 0.3183099 = 1/1/pipi
     _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
 
     // Calculate the NE position of WP B relative to WP A
@@ -333,9 +329,14 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     _prevent_indecision(Nu);
     _last_Nu = Nu;
 
-    //Limit Nu to +-(pi/2)
+    // Limit Nu to +-(pi/2)
     Nu = constrain_float(Nu, -1.5708f, +1.5708f);
-    _latAccDem = K_L1 * groundSpeed * groundSpeed / _L1_dist * sinf(Nu);
+
+    // [Adelphi Spot-Landing Fix] Mantem autoridade de roll/aileron mesmo quando o planador reduz
+    // groundSpeed para 3-5 m/s durante a frenagem na rampa de pouso:
+    const float effective_gs = (groundSpeed > 1.5f) ? MAX(groundSpeed, 9.0f) : groundSpeed;
+    const float effective_L1 = MAX(0.3183099f * _L1_damping * _L1_period * effective_gs, dist_min);
+    _latAccDem = K_L1 * effective_gs * effective_gs / effective_L1 * sinf(Nu);
 
     // Waypoint capture status is always false during waypoint following
     _WPcircle = false;
